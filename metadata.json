@@ -1,0 +1,8 @@
+{
+  "name": "CHAT PRO",
+  "description": "تطبيق مراسلة متكامل مع نظام مستخدمين حقيقي، ردود ذكية عبر My AI، ونظام متقدم للرد والنسخ والمشاركة.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
