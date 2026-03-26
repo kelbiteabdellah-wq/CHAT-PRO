@@ -1,0 +1,1686 @@
+loadstring(game:HttpGet("https://raw.githubusercontent.com/jraabraneem-sudo/Xeno-scripts/refs/heads/main/NEBROUI"))()
+
+NEBROLIB.makeWindow("NEBRO HUB | BLOX FRUITS", "", "by : nebro")
+NEBROLIB.makeIntro("NEBRO HUB | V1")
+
+-- Create Tabs
+local mainTab = NEBROLIB.createTab("Main", "NB")
+local disableTab = NEBROLIB.createTab("Disable", "NB")
+local statsTab = NEBROLIB.createTab("Stats", "NB")
+local tpTab = NEBROLIB.createTab("Teleport", "NB")
+local raidTab = NEBROLIB.createTab("Raid", "NB")
+local teamTab = NEBROLIB.createTab("Team", "NB")
+local fruitTab = NEBROLIB.createTab("Fruits", "NB")
+local weaponTab = NEBROLIB.createTab("Weapon", "NB")
+local settingTab = NEBROLIB.createTab("Settings", "NB")
+
+-- Toggle  
+local AutoFarm = false  
+
+NEBROLIB.createToggle(mainTab, "Auto Farm Level", false, function(state)  
+    AutoFarm = state  
+
+    if state then  
+        NEBROLIB.notify("Auto Farm Level Enabled", "success")  
+    else  
+        NEBROLIB.notify("Auto Farm Level Disabled", "error")  
+    end  
+end)  
+
+-- Load  
+repeat task.wait() until game:IsLoaded()  
+
+-- Services  
+local Players = game:GetService("Players")  
+local ReplicatedStorage = game:GetService("ReplicatedStorage")  
+local RunService = game:GetService("RunService")  
+
+-- Player  
+local Player = Players.LocalPlayer  
+local Character = Player.Character or Player.CharacterAdded:Wait()  
+local Humanoid = Character:WaitForChild("Humanoid")  
+local Root = Character:WaitForChild("HumanoidRootPart")  
+
+Player.CharacterAdded:Connect(function(char)  
+    Character = char  
+    Humanoid = char:WaitForChild("Humanoid")  
+    Root = char:WaitForChild("HumanoidRootPart")  
+end)  
+
+-- Remotes  
+local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")  
+local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")  
+local RegisterAttack = Net["RE/RegisterAttack"]  
+local RegisterHit = Net["RE/RegisterHit"]  
+
+-- Settings  
+local HoverHeight = 27  
+local MoveSpeed = 120  
+
+-- Fighting Styles (الأولوية من الأعلى للأسفل)
+local FightingStyles = {
+    "Godhuman",
+    "Sanguine Art",
+    "Death Step",
+    "Electric Claw",
+    "Dragon Talon",
+    "Dragon Claw",
+    "Superhuman",
+    "Sharkman Karate",
+    "Electric",
+    "Black Leg",
+    "Fishman Karate",
+    "Combat"
+}
+
+-- Session  
+local function GetSessionID()  
+    local SendHitsToServer = getrenv()._G.SendHitsToServer  
+    local CombatThread = getupvalues(SendHitsToServer)[1]  
+    return tostring(Player.UserId):sub(2,4)..tostring(CombatThread):sub(11,15)  
+end  
+
+-- Attack  
+local function Attack(target)  
+    if not AutoFarm then return end  
+    RegisterAttack:FireServer(0.5)  
+    task.wait()  
+    RegisterHit:FireServer(target.HumanoidRootPart, {}, nil, GetSessionID())  
+end  
+
+-- ⭐ Equip Fighting Style (مهم)
+local function EquipBestStyle()
+    for _,style in ipairs(FightingStyles) do
+        -- إذا موجود بالشخصية
+        if Character:FindFirstChild(style) then
+            return
+        end
+        
+        -- إذا موجود بالباكباك
+        local tool = Player.Backpack:FindFirstChild(style)
+        if tool then
+            Humanoid:EquipTool(tool)
+            return
+        end
+    end
+end
+
+-- Noclip  
+local function Noclip(state)  
+    for _,v in pairs(Character:GetDescendants()) do  
+        if v:IsA("BasePart") then  
+            v.CanCollide = not state  
+        end  
+    end  
+end  
+
+-- Move  
+local function MoveTo(pos)  
+    Noclip(true)  
+    while AutoFarm and (Root.Position - pos).Magnitude > 5 do  
+        local dt = RunService.Heartbeat:Wait()  
+        local dir = (pos - Root.Position).Unit  
+        Root.CFrame += dir * (MoveSpeed * dt)  
+    end  
+    Noclip(false)  
+end  
+
+-- QUEST SYSTEM (نفس تبعك بدون تغيير)
+local function GetQuest()  
+    local lvl = Player.Data.Level.Value  
+
+    if lvl >= 1 and lvl <= 9 then  
+        return "BanditQuest1","Bandit",1,CFrame.new(1059,15,1550)  
+    elseif lvl >= 10 and lvl <= 14 then  
+        return "JungleQuest","Monkey",1,CFrame.new(-1598,35,153)  
+    elseif lvl >= 15 and lvl <= 29 then  
+        return "JungleQuest","Gorilla",2,CFrame.new(-1598,35,153)  
+    elseif lvl >= 30 and lvl <= 39 then  
+        return "BuggyQuest1","Pirate",1,CFrame.new(-1141,4,3831)  
+    elseif lvl >= 40 and lvl <= 59 then  
+        return "BuggyQuest1","Brute",2,CFrame.new(-1141,4,3831)  
+    elseif lvl >= 60 and lvl <= 74 then  
+        return "DesertQuest","Desert Bandit",1,CFrame.new(894,5,4392)  
+    elseif lvl >= 75 and lvl <= 89 then  
+        return "DesertQuest","Desert Officer",2,CFrame.new(894,5,4392)  
+    elseif lvl >= 90 and lvl <= 99 then  
+        return "SnowQuest","Snow Bandit",1,CFrame.new(1389,88,-1298)  
+    elseif lvl >= 100 and lvl <= 119 then  
+        return "SnowQuest","Snowman",2,CFrame.new(1389,88,-1298)  
+    elseif lvl >= 120 and lvl <= 149 then  
+        return "MarineQuest2","Chief Petty Officer",1,CFrame.new(-5039,27,4324)  
+    elseif lvl >= 150 and lvl <= 189 then  
+        return "SkyQuest","Sky Bandit",1,CFrame.new(-4839,716,-2619)  
+    elseif lvl >= 190 and lvl <= 249 then  
+        return "PrisonerQuest","Dangerous Prisoner",2,CFrame.new(5308,1,475)  
+    elseif lvl >= 250 and lvl <= 299 then  
+        return "ColosseumQuest","Toga Warrior",1,CFrame.new(-1580,6,-2986)  
+    elseif lvl >= 300 and lvl <= 374 then  
+        return "MagmaQuest","Military Soldier",1,CFrame.new(-5313,10,8515)  
+    elseif lvl >= 375 and lvl <= 449 then  
+        return "FishmanQuest","Fishman Warrior",1,CFrame.new(61122,18,1569)  
+    elseif lvl >= 450 and lvl <= 524 then  
+        return "SkyExp1Quest","God's Guard",1,CFrame.new(-4721,843,-1949)  
+    elseif lvl >= 525 and lvl <= 649 then  
+        return "SkyExp2Quest","Royal Squad",1,CFrame.new(-7906,5634,-1411)  
+    elseif lvl >= 650 and lvl <= 699 then  
+        return "FountainQuest","Galley Captain",2,CFrame.new(5259,37,4050)  
+
+    elseif lvl >= 700 and lvl <= 774 then  
+        return "Area1Quest","Raider",1,CFrame.new(-429,71,1836)  
+    elseif lvl >= 775 and lvl <= 874 then  
+        return "Area2Quest","Swan Pirate",1,CFrame.new(638,71,918)  
+    elseif lvl >= 875 and lvl <= 949 then  
+        return "MarineQuest3","Marine Lieutenant",1,CFrame.new(-2440,71,-3216)  
+    elseif lvl >= 950 and lvl <= 999 then  
+        return "ZombieQuest","Zombie",1,CFrame.new(-5497,47,-795)  
+    elseif lvl >= 1000 and lvl <= 1099 then  
+        return "SnowMountainQuest","Snow Trooper",1,CFrame.new(609,400,-5372)  
+    elseif lvl >= 1100 and lvl <= 1199 then  
+        return "IceSideQuest","Lab Subordinate",1,CFrame.new(-6064,15,-4902)  
+    elseif lvl >= 1200 and lvl <= 1299 then  
+        return "FireSideQuest","Lava Pirate",2,CFrame.new(-5428,15,-5299)  
+    elseif lvl >= 1300 and lvl <= 1399 then  
+        return "ShipQuest2","Ship Steward",1,CFrame.new(968,125,33244)  
+    elseif lvl >= 1400 and lvl <= 1499 then  
+        return "ForgottenQuest","Sea Soldier",1,CFrame.new(-3054,235,-10142)  
+
+    elseif lvl >= 1500 and lvl <= 1599 then  
+        return "PiratePortQuest","Pirate Millionaire",1,CFrame.new(-290,42,5581)  
+    elseif lvl >= 1600 and lvl <= 1699 then  
+        return "AmazonQuest","Dragon Crew Warrior",1,CFrame.new(5832,51,-1101)  
+    elseif lvl >= 1700 and lvl <= 1799 then  
+        return "MarineTreeIsland","Marine Commodore",1,CFrame.new(2180,27,-6741)  
+    elseif lvl >= 1800 and lvl <= 1899 then  
+        return "DeepForestIsland3","Fishman Captain",2,CFrame.new(-10581,330,-8761)  
+    elseif lvl >= 1900 and lvl <= 1999 then  
+        return "DeepForestIsland2","Jungle Pirate",1,CFrame.new(-12680,389,-9902)  
+    elseif lvl >= 2000 and lvl <= 2099 then  
+        return "HauntedQuest1","Living Zombie",2,CFrame.new(-9479,141,5566)  
+    elseif lvl >= 2100 and lvl <= 2199 then  
+        return "NutsIslandQuest","Peanut President",2,CFrame.new(-2104,38,-10194)  
+    elseif lvl >= 2200 and lvl <= 2274 then  
+        return "CakeQuest1","Cookie Crafter",1,CFrame.new(-2021,37,-12028)  
+    elseif lvl >= 2275 then  
+        return "CakeQuest2","Head Baker",2,CFrame.new(-1927,37,-12842)  
+    end  
+end  
+
+-- Enemy finder  
+local function GetEnemy(name)  
+    for _,v in pairs(workspace.Enemies:GetChildren()) do  
+        if v.Name == name and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then  
+            return v  
+        end  
+    end  
+end  
+
+-- Start quest  
+local function StartQuest()  
+    local Quest,_,Level,Pos = GetQuest()  
+    MoveTo(Pos.Position)  
+    task.wait(0.3)  
+    CommF:InvokeServer("StartQuest",Quest,Level)  
+end  
+
+-- MAIN LOOP  
+task.spawn(function()  
+    while task.wait(0.1) do  
+        if not AutoFarm then continue end  
+
+        pcall(function()  
+            EquipBestStyle()  
+
+            local _,EnemyName = GetQuest()  
+
+            if not Player.PlayerGui.Main.Quest.Visible then  
+                StartQuest()  
+            end  
+
+            local Enemy = GetEnemy(EnemyName)  
+            if Enemy then  
+                repeat  
+                    Root.CFrame = Enemy.HumanoidRootPart.CFrame * CFrame.new(0,HoverHeight,0)  
+                    Root.Velocity = Vector3.zero  
+                    Attack(Enemy)  
+                    task.wait()  
+                until Enemy.Humanoid.Health <= 0 or not AutoFarm  
+            end  
+        end)  
+    end  
+end)
+
+-- TELESCOPE: World Teleports with NEBROLIB
+
+local TweenService = game:GetService("TweenService")
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+
+--======================
+-- CFrames لكل عالم
+--======================
+
+-- World 1
+local targetCFrameWorld1 = CFrame.new(
+    -1166.52283, 7.73542881, 1729.3916,
+    0.353035539, 2.71882357e-08, -0.935609937,
+    2.47146481e-08, 1, 3.83849965e-08,
+    0.935609937, -3.6674539e-08, 0.353035539
+)
+
+-- World 2
+local targetCFrameWorld2 = CFrame.new(
+    -387.621246, 20.6934395, 5441.47021,
+    0.728105068, -1.03781339e-08, -0.685465515,
+    -7.74841169e-09, 1, -2.33706743e-08,
+    0.685465515, 2.23275762e-08, 0.728105068
+)
+
+-- World 3
+local targetCFrameWorld3 = CFrame.new(
+    -1908.35522, 6.5207653, -2536.69995,
+    -0.836797655, 6.05827424e-08, -0.547512293,
+    6.91875783e-08, 1, 4.90718666e-09,
+    0.547512293, -3.37747252e-08, -0.836797655
+)
+
+--======================
+-- دالة التحريك العامة
+--======================
+local function moveToCFrame(targetCFrame)
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        local distance = (targetCFrame.Position - character.HumanoidRootPart.Position).Magnitude
+        local walkSpeed = 340
+        local timeToReach = distance / walkSpeed
+
+        local goal = {CFrame = targetCFrame}
+        local tweenInfo = TweenInfo.new(timeToReach, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut)
+        local tween = TweenService:Create(character.HumanoidRootPart, tweenInfo, goal)
+        tween:Play()
+        tween.Completed:Connect(function()
+            print("Teleport Completed to position: " .. tostring(targetCFrame.Position))
+        end)
+    else
+        print("Character or HumanoidRootPart not found!")
+    end
+end
+
+--======================
+-- Teleport Toggles
+--======================
+
+-- World 1
+local World1Toggle = false
+NEBROLIB.createToggle(tpTab, "World 1", false, function(state)
+    World1Toggle = state
+    if state then
+        NEBROLIB.notify("Tp To World 1 Enabled", "success")
+        moveToCFrame(targetCFrameWorld1)
+    else
+        NEBROLIB.notify("Tp To World 1 Disabled", "error")
+    end
+end)
+
+-- World 2
+local World2Toggle = false
+NEBROLIB.createToggle(tpTab, "World 2", false, function(state)
+    World2Toggle = state
+    if state then
+        NEBROLIB.notify("Tp To World 2 Enabled", "success")
+        moveToCFrame(targetCFrameWorld2)
+    else
+        NEBROLIB.notify("Tp ToWorld 2 Disabled", "error")
+    end
+end)
+
+-- World 3
+local World3Toggle = false
+NEBROLIB.createToggle(tpTab, "World 3", false, function(state)
+    World3Toggle = state
+    if state then
+        NEBROLIB.notify("Tp ToWorld 3 Enabled", "success")
+        moveToCFrame(targetCFrameWorld3)
+    else
+        NEBROLIB.notify("Tp To World 3 Disabled", "error")
+    end
+end)
+
+-- Services
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- Islands
+local FirstSeaIslands = {
+    {Name="Middle Town", CFrame=CFrame.new(0,20,0)},
+    {Name="Marine Starter", CFrame=CFrame.new(-1000,10,0)},
+    {Name="Pirate Starter", CFrame=CFrame.new(1000,10,0)},
+    {Name="Jungle", CFrame=CFrame.new(1500,15,1500)},
+    {Name="Pirate Village", CFrame=CFrame.new(2500,10,2000)},
+    {Name="Desert", CFrame=CFrame.new(3500,20,1500)},
+    {Name="Frozen Village", CFrame=CFrame.new(500,15,-1000)},
+    {Name="Marine Fortress", CFrame=CFrame.new(500,40,-2000)},
+    {Name="Skylands", CFrame=CFrame.new(0,300,-2000)},
+    {Name="Prison", CFrame=CFrame.new(-1500,25,-500)},
+    {Name="Colosseum", CFrame=CFrame.new(0,15,-3000)},
+    {Name="Magma Village", CFrame=CFrame.new(-1000,50,-2000)},
+    {Name="Underwater City", CFrame=CFrame.new(500,-50,-1500)},
+    {Name="Fountain City", CFrame=CFrame.new(-500,80,-3500)},
+}
+
+-- تحويل الأسماء لـ Dropdown
+local IslandNames = {}
+for _, island in ipairs(FirstSeaIslands) do
+    table.insert(IslandNames, island.Name)
+end
+
+-- المتغير المختار
+local SelectedIsland = FirstSeaIslands[1]
+
+-- =========================
+-- Dropdown (الجديد)
+-- =========================
+NEBROLIB.createDropdown(tpTab, IslandNames, 1, function(opt)
+    for _, island in ipairs(FirstSeaIslands) do
+        if island.Name == opt then
+            SelectedIsland = island
+            break
+        end
+    end
+
+    NEBROLIB.notify("Selected: "..opt, "info")
+end)
+
+-- =========================
+-- زر TP
+-- =========================
+NEBROLIB.createButton(tpTab, "Tp To Island Notification", function()
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+
+    if hrp and SelectedIsland then
+        NEBROLIB.notify("Teleporting to "..SelectedIsland.Name, "warning")
+
+        local tweenInfo = TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        TweenService:Create(
+            hrp,
+            tweenInfo,
+            {CFrame = SelectedIsland.CFrame + Vector3.new(0,5,0)}
+        ):Play()
+    else
+        NEBROLIB.notify("Character not loaded!", "error")
+    end
+end)
+
+-- Remote
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+
+-- Stats Table
+local AutoStats = {
+    Melee = false,
+    Defense = false,
+    Sword = false,
+    Gun = false,
+    BloxFruit = false
+}
+
+-- Function
+local function assignStat(stat)
+    pcall(function()
+        CommF:InvokeServer("AddPoint", stat)
+    end)
+end
+
+-- Loop (نفس نظامك بدون تغيير)
+task.spawn(function()
+    while true do
+        for statName, enabled in pairs(AutoStats) do
+            if enabled then
+                assignStat(statName)
+                task.wait(0.1)
+            end
+        end
+        task.wait(1)
+    end
+end)
+
+-- =========================
+-- Toggles (استبدال كامل)
+-- =========================
+
+-- Melee
+NEBROLIB.createToggle(statsTab, "Mele", false, function(state)
+    AutoStats.Melee = state
+
+    if state then
+        NEBROLIB.notify("Auto Mele Stats Added", "success")
+    else
+        NEBROLIB.notify("Auto Mele Stats Stopped", "error")
+    end
+end)
+
+-- Defense
+NEBROLIB.createToggle(statsTab, "Defense", false, function(state)
+    AutoStats.Defense = state
+
+    if state then
+        NEBROLIB.notify("Auto Defense Stats Added", "success")
+    else
+        NEBROLIB.notify("Auto Defense Stats Stopped", "error")
+    end
+end)
+
+-- Sword
+NEBROLIB.createToggle(statsTab, "Sword", false, function(state)
+    AutoStats.Sword = state
+
+    if state then
+        NEBROLIB.notify("Auto Sword Stats Added", "success")
+    else
+        NEBROLIB.notify("Auto Sword Stats Stopped", "error")
+    end
+end)
+
+-- Gun
+NEBROLIB.createToggle(statsTab, "Gun", false, function(state)
+    AutoStats.Gun = state
+
+    if state then
+        NEBROLIB.notify("Auto Gun Stats Added", "success")
+    else
+        NEBROLIB.notify("Auto Gun Stats Stopped", "error")
+    end
+end)
+
+-- Blox Fruit
+NEBROLIB.createToggle(statsTab, "Blox Fruit", false, function(state)
+    AutoStats.BloxFruit = state
+
+    if state then
+        NEBROLIB.notify("Auto Blox Fruit Stats Added", "success")
+    else
+        NEBROLIB.notify("Auto Blox Fruit Stats Stopped", "error")
+    end
+end)
+
+-- Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- =========================
+-- Disable Notifications
+-- =========================
+NEBROLIB.createToggle(disableTab, "Disable Notifications", false, function(state)
+    local Notifications = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("Notifications")
+
+    -- إذا فعلت التوغل = تعطيل
+    Notifications.Enabled = not state
+
+    if state then
+        NEBROLIB.notify("Notifications Disabled", "error")
+    else
+        NEBROLIB.notify("Notifications Enabled", "success")
+    end
+end)
+
+-- =========================
+-- Disable Damage Counter
+-- =========================
+NEBROLIB.createToggle(disableTab, "Disable Damage Counter", false, function(state)
+    local DamageCounter = ReplicatedStorage
+        :WaitForChild("Assets")
+        :WaitForChild("GUI")
+        :WaitForChild("DamageCounter")
+
+    -- إذا فعلت التوغل = تعطيل
+    DamageCounter.Enabled = not state
+
+    if state then
+        NEBROLIB.notify("Damage Counter Disabled", "error")
+    else
+        NEBROLIB.notify("Damage Counter Enabled", "success")
+    end
+end)
+
+-- EFFECT CLEANER TOGGLE
+
+local EffectCleaner = false
+
+NEBROLIB.createToggle(disableTab, "Disable Sounds & Effects", false, function(state)
+    EffectCleaner = state
+
+    if state then
+        NEBROLIB.notify("Sounds Enabled", "success")
+
+        task.spawn(function()
+            while EffectCleaner do
+                pcall(function()
+                    for i, v in pairs(game.Workspace["_WorldOrigin"]:GetChildren()) do
+                        if v.Name == "CurvedRing" 
+                        or v.Name == "SlashHit" 
+                        or v.Name == "SwordSlash" 
+                        or v.Name == "Sounds" then
+                            v:Destroy()
+                        end
+                    end
+                end)
+
+                task.wait(0.5)
+            end
+        end)
+
+    else
+        NEBROLIB.notify("Sounds Disabled", "error")
+    end
+end)
+
+--// SERVICES
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Player = Players.LocalPlayer
+
+--// GLOBALS
+_G.Auto_Dungeon = false
+_G.Auto_Awakener = false
+_G.AutoSelectDungeon = false
+_G.AutoBuyChip = false
+_G.Auto_StartRaid = false
+_G.SelectChip = "Flame"
+
+_G.AutoSuperhuman = false
+_G.AutoDeathStep = false
+_G.AutoSharkman = false
+_G.AutoElectricClaw = false
+_G.AutoDragonTalon = false
+
+--====================================================
+-- 🔘 TOGGLES (NEBROLIB)
+--====================================================
+
+NEBROLIB.createToggle(raidTab, "Auto Farm Dungeon", false, function(state)
+    _G.Auto_Dungeon = state
+    NEBROLIB.notify("Auto Dungeon "..(state and "Enabled" or "Disabled"), state and "success" or "error")
+end)
+
+NEBROLIB.createToggle(raidTab, "Auto Awakener", false, function(state)
+    _G.Auto_Awakener = state
+end)
+
+NEBROLIB.createToggle(raidTab, "Auto Select Dungeon", false, function(state)
+    _G.AutoSelectDungeon = state
+end)
+
+NEBROLIB.createToggle(raidTab, "Auto Buy Chip", false, function(state)
+    _G.AutoBuyChip = state
+end)
+
+NEBROLIB.createToggle(raidTab, "Auto Start Raid", false, function(state)
+    _G.Auto_StartRaid = state
+end)
+
+-- Fighting Styles
+NEBROLIB.createToggle(styleTab, "Auto Superhuman", false, function(state)
+    _G.AutoSuperhuman = state
+end)
+
+NEBROLIB.createToggle(styleTab, "Auto DeathStep", false, function(state)
+    _G.AutoDeathStep = state
+end)
+
+NEBROLIB.createToggle(styleTab, "Auto Sharkman Karate", false, function(state)
+    _G.AutoSharkman = state
+end)
+
+NEBROLIB.createToggle(styleTab, "Auto Electric Claw", false, function(state)
+    _G.AutoElectricClaw = state
+end)
+
+NEBROLIB.createToggle(styleTab, "Auto Dragon Talon", false, function(state)
+    _G.AutoDragonTalon = state
+end)
+
+--====================================================
+-- 📜 DROPDOWN
+--====================================================
+
+NEBROLIB.createDropdown(raidTab, {
+    "Flame","Ice","Quake","Light","Dark","String",
+    "Rumble","Magma","Human: Buddha","Sand","Bird: Phoenix"
+}, 1, function(opt)
+    _G.SelectChip = opt
+    NEBROLIB.notify("Selected Chip: "..opt, "info")
+end)
+
+--====================================================
+-- 🔘 BUTTONS
+--====================================================
+
+NEBROLIB.createButton(raidTab, "Buy Chip", function()
+    ReplicatedStorage.Remotes.CommF_:InvokeServer("RaidsNpc","Select",_G.SelectChip)
+end)
+
+NEBROLIB.createButton(raidTab, "Start Raid", function()
+    if World2 then
+        fireclickdetector(workspace.Map.CircleIsland.RaidSummon2.Button.Main.ClickDetector)
+    elseif World3 then
+        fireclickdetector(workspace.Map["Boat Castle"].RaidSummon2.Button.Main.ClickDetector)
+    end
+end)
+
+NEBROLIB.createButton(raidTab, "Next Island", function()
+    local loc = workspace["_WorldOrigin"].Locations
+    for i = 5,1,-1 do
+        local island = loc:FindFirstChild("Island "..i)
+        if island then
+            Player.Character.HumanoidRootPart.CFrame = island.CFrame * CFrame.new(0,70,100)
+            break
+        end
+    end
+end)
+
+--====================================================
+-- ⚔️ AUTO DUNGEON FARM
+--====================================================
+
+spawn(function()
+    while task.wait() do
+        if _G.Auto_Dungeon then
+            pcall(function()
+                if Player.PlayerGui.Main.Timer.Visible then
+                    for _,v in pairs(workspace.Enemies:GetDescendants()) do
+                        if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
+                            repeat task.wait()
+                                sethiddenproperty(Player,"SimulationRadius",math.huge)
+                                v.Humanoid.Health = 0
+                                v.HumanoidRootPart.CanCollide = false
+                            until not _G.Auto_Dungeon or v.Humanoid.Health <= 0
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+--====================================================
+-- 🧠 AUTO AWAKENER
+--====================================================
+
+spawn(function()
+    while task.wait(.5) do
+        if _G.Auto_Awakener then
+            pcall(function()
+                ReplicatedStorage.Remotes.CommF_:InvokeServer("Awakener","Check")
+                ReplicatedStorage.Remotes.CommF_:InvokeServer("Awakener","Awaken")
+            end)
+        end
+    end
+end)
+
+--====================================================
+-- 🎯 AUTO SELECT CHIP
+--====================================================
+
+spawn(function()
+    while task.wait() do
+        if _G.AutoSelectDungeon then
+            pcall(function()
+                local char = Player.Character
+                local bp = Player.Backpack
+
+                local fruits = {
+                    ["Flame-Flame"]="Flame",
+                    ["Ice-Ice"]="Ice",
+                    ["Quake-Quake"]="Quake",
+                    ["Light-Light"]="Light",
+                    ["Dark-Dark"]="Dark",
+                    ["String-String"]="String",
+                    ["Rumble-Rumble"]="Rumble",
+                    ["Magma-Magma"]="Magma",
+                    ["Sand-Sand"]="Sand"
+                }
+
+                for name,val in pairs(fruits) do
+                    if char:FindFirstChild(name) or bp:FindFirstChild(name) then
+                        _G.SelectChip = val
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+--====================================================
+-- 💰 AUTO BUY CHIP
+--====================================================
+
+spawn(function()
+    while task.wait() do
+        if _G.AutoBuyChip then
+            pcall(function()
+                if not Player.Backpack:FindFirstChild("Special Microchip") then
+                    ReplicatedStorage.Remotes.CommF_:InvokeServer("RaidsNpc","Select",_G.SelectChip)
+                end
+            end)
+        end
+    end
+end)
+
+--====================================================
+-- 🚀 AUTO START RAID
+--====================================================
+
+spawn(function()
+    while task.wait(1) do
+        if _G.Auto_StartRaid then
+            pcall(function()
+                if not Player.PlayerGui.Main.Timer.Visible then
+                    if Player.Backpack:FindFirstChild("Special Microchip") then
+                        if World2 then
+                            fireclickdetector(workspace.Map.CircleIsland.RaidSummon2.Button.Main.ClickDetector)
+                        elseif World3 then
+                            fireclickdetector(workspace.Map["Boat Castle"].RaidSummon2.Button.Main.ClickDetector)
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+--====================================================
+-- ⚔️ AUTO SUPERHUMAN (مختصر بدون حذف منطق)
+--====================================================
+
+spawn(function()
+    while task.wait() do
+        if _G.AutoSuperhuman then
+            pcall(function()
+                ReplicatedStorage.Remotes.CommF_:InvokeServer("BuySuperhuman")
+            end)
+        end
+    end
+end)
+
+--====================================================
+-- ⚔️ AUTO DEATH STEP
+--====================================================
+
+spawn(function()
+    while task.wait() do
+        if _G.AutoDeathStep then
+            pcall(function()
+                ReplicatedStorage.Remotes.CommF_:InvokeServer("BuyDeathStep")
+            end)
+        end
+    end
+end)
+
+--====================================================
+-- ⚔️ AUTO SHARKMAN
+--====================================================
+
+spawn(function()
+    while task.wait() do
+        if _G.AutoSharkman then
+            pcall(function()
+                ReplicatedStorage.Remotes.CommF_:InvokeServer("BuySharkmanKarate")
+            end)
+        end
+    end
+end)
+
+--====================================================
+-- ⚡ AUTO ELECTRIC CLAW
+--====================================================
+
+spawn(function()
+    while task.wait() do
+        if _G.AutoElectricClaw then
+            pcall(function()
+                ReplicatedStorage.Remotes.CommF_:InvokeServer("BuyElectricClaw")
+            end)
+        end
+    end
+end)
+
+--====================================================
+-- 🔥 AUTO DRAGON TALON
+--====================================================
+
+spawn(function()
+    while task.wait() do
+        if _G.AutoDragonTalon then
+            pcall(function()
+                ReplicatedStorage.Remotes.CommF_:InvokeServer("BuyDragonTalon")
+            end)
+        end
+    end
+end)
+
+NEBROLIB.createSection(settingTab, "Setting")
+
+-- Services
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Variables
+local AntiAFKEnabled = false
+local connections = {}
+
+-- =========================
+-- Anti AFK Function
+-- =========================
+local function EnableAntiAFK()
+    -- منع الطرد بسبب AFK
+    local conn
+    conn = LocalPlayer.Idled:Connect(function()
+        if AntiAFKEnabled then
+            game:GetService("VirtualUser"):ClickButton2(Vector2.new(0,0))
+        end
+    end)
+    table.insert(connections, conn)
+end
+
+local function DisableAntiAFK()
+    -- فصل كل الاتصالات المرتبطة
+    for _, conn in ipairs(connections) do
+        if conn and conn.Disconnect then
+            conn:Disconnect()
+        end
+    end
+    connections = {}
+end
+
+-- =========================
+-- Toggle (دمج مع N.createToggle)
+-- =========================
+NEBROLIB.createToggle(settingTab, "Anti AFK", false, function(state)
+    AntiAFKEnabled = state
+
+    if state then
+        NEBROLIB.notify("Anti AFK Enabled", "success")
+        EnableAntiAFK()
+    else
+        NEBROLIB.notify("Anti AFK Disabled", "error")
+        DisableAntiAFK()
+    end
+end)
+
+-- Services
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+
+-- Vars
+local FastMode = false
+local SavedObjects = {}
+
+-- تشغيل Fast Mode
+local function EnableFastMode()
+    SavedObjects = {}
+
+    local Terrain = Workspace:FindFirstChildOfClass("Terrain")
+
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            SavedObjects[obj] = {
+                Material = obj.Material,
+                Reflectance = obj.Reflectance,
+                CastShadow = obj.CastShadow
+            }
+
+            obj.Material = Enum.Material.SmoothPlastic
+            obj.Reflectance = 0
+            obj.CastShadow = false
+
+        elseif obj:IsA("Decal") or obj:IsA("Texture") or obj:IsA("SurfaceAppearance") then
+            SavedObjects[obj] = true
+            obj:Destroy()
+
+        elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
+            SavedObjects[obj] = obj.Enabled
+            obj.Enabled = false
+        end
+    end
+
+    -- Lighting
+    SavedObjects["Lighting"] = {
+        GlobalShadows = Lighting.GlobalShadows,
+        FogEnd = Lighting.FogEnd,
+        Brightness = Lighting.Brightness,
+        EnvironmentSpecularScale = Lighting.EnvironmentSpecularScale,
+        EnvironmentDiffuseScale = Lighting.EnvironmentDiffuseScale
+    }
+
+    Lighting.GlobalShadows = false
+    Lighting.FogEnd = 9e9
+    Lighting.Brightness = 1
+    Lighting.EnvironmentSpecularScale = 0
+    Lighting.EnvironmentDiffuseScale = 0
+
+    -- Terrain
+    if Terrain then
+        SavedObjects["Terrain"] = {
+            WaterWaveSize = Terrain.WaterWaveSize,
+            WaterWaveSpeed = Terrain.WaterWaveSpeed,
+            WaterTransparency = Terrain.WaterTransparency,
+            WaterReflectance = Terrain.WaterReflectance
+        }
+
+        Terrain.WaterWaveSize = 0
+        Terrain.WaterWaveSpeed = 0
+        Terrain.WaterTransparency = 1
+        Terrain.WaterReflectance = 0
+    end
+end
+
+-- إيقاف Fast Mode (يرجع كل شيء)
+local function DisableFastMode()
+    for obj, data in pairs(SavedObjects) do
+        if typeof(obj) == "Instance" and obj.Parent then
+            if obj:IsA("BasePart") then
+                obj.Material = data.Material
+                obj.Reflectance = data.Reflectance
+                obj.CastShadow = data.CastShadow
+
+            elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
+                obj.Enabled = data
+            end
+        end
+    end
+
+    -- Lighting
+    if SavedObjects["Lighting"] then
+        local l = SavedObjects["Lighting"]
+        Lighting.GlobalShadows = l.GlobalShadows
+        Lighting.FogEnd = l.FogEnd
+        Lighting.Brightness = l.Brightness
+        Lighting.EnvironmentSpecularScale = l.EnvironmentSpecularScale
+        Lighting.EnvironmentDiffuseScale = l.EnvironmentDiffuseScale
+    end
+
+    -- Terrain
+    local Terrain = Workspace:FindFirstChildOfClass("Terrain")
+    if Terrain and SavedObjects["Terrain"] then
+        local t = SavedObjects["Terrain"]
+        Terrain.WaterWaveSize = t.WaterWaveSize
+        Terrain.WaterWaveSpeed = t.WaterWaveSpeed
+        Terrain.WaterTransparency = t.WaterTransparency
+        Terrain.WaterReflectance = t.WaterReflectance
+    end
+
+    SavedObjects = {}
+end
+
+-- =========================
+-- Toggle (بدل الزر)
+-- =========================
+NEBROLIB.createToggle(settingTab, "Fast Mode", false, function(state)
+    FastMode = state
+
+    if state then
+        NEBROLIB.notify("Fast Mode Enabled", "success")
+        EnableFastMode()
+    else
+        NEBROLIB.notify("Fast Mode Disabled", "error")
+        DisableFastMode()
+    end
+end)
+
+-- Optimizer Toggle + Script
+NEBROLIB.createToggle(settingTab, "Optimizer", false, function(state)
+    if state then
+        NEBROLIB.notify("Optimizer Enabled", "success")
+
+        --======================
+        -- دوال تحسين الأداء
+        --======================
+
+        -- تحسين الأجزاء
+        local function optimizePart(part)
+            part.CastShadow = false
+            part.Material = Enum.Material.Plastic
+        end
+
+        -- تحسين الGUI والاضاءات
+        local function optimizeObject(object)
+            if object:IsA("Decal") then
+                object.Texture = ""
+            elseif object:IsA("SurfaceGui") or object:IsA("BillboardGui") then
+                object.LightInfluence = 0
+                for _, child in ipairs(object:GetDescendants()) do
+                    if child:IsA("ImageLabel") or child:IsA("ImageButton") then
+                        child.Image = ""
+                    elseif child:IsA("TextLabel") or child:IsA("TextButton") then
+                        child.Text = ""
+                    end
+                end
+            elseif object:IsA("GuiObject") then
+                if object:IsA("ImageLabel") or object:IsA("ImageButton") then
+                    object.Image = ""
+                elseif object:IsA("TextLabel") or object:IsA("TextButton") then
+                    object.Text = ""
+                end
+            elseif object:IsA("PointLight") or object:IsA("SpotLight") or object:IsA("SurfaceLight") then
+                object.Brightness = math.clamp(object.Brightness * 0.5, 0, 2)
+                object.Range = math.clamp(object.Range * 0.8, 2, 30)
+                object.Shadows = false
+            end
+        end
+
+        -- معالجة جميع العناصر داخل Chest
+        local function processChestDescendants(chestModel)
+            for _, descendant in ipairs(chestModel:GetDescendants()) do
+                if not descendant.Name:lower():find("tree") then
+                    if descendant:IsA("BasePart") or descendant:IsA("MeshPart") or descendant:IsA("UnionOperation") then
+                        optimizePart(descendant)
+                    elseif descendant:IsA("Decal") or descendant:IsA("GuiObject") or descendant:IsA("Light") then
+                        optimizeObject(descendant)
+                    elseif descendant:IsA("Animation") then
+                        descendant:Destroy()
+                    end
+                end
+            end
+        end
+
+        -- تحسين كل Workspace
+        local function processWorkspace()
+            for _, descendant in ipairs(workspace:GetDescendants()) do
+                if not descendant.Name:lower():find("tree") then
+                    if descendant:IsA("Model") and descendant.Name:find("Chest") then
+                        processChestDescendants(descendant)
+                    end
+                    if descendant:IsA("BasePart") or descendant:IsA("MeshPart") or descendant:IsA("UnionOperation") then
+                        optimizePart(descendant)
+                    elseif descendant:IsA("Decal") or descendant:IsA("GuiObject") or descendant:IsA("Light") then
+                        optimizeObject(descendant)
+                    end
+                end
+            end
+        end
+
+        -- تنفيذ التحسين فور التفعيل
+        processWorkspace()
+
+    else
+        NEBROLIB.notify("Optimizer Disabled", "error")
+    end
+end)
+
+-- Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Player
+local LocalPlayer = Players.LocalPlayer
+
+-- Remote
+local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+
+-- Vars
+local AutoHaki = false
+local hakiUsedThisLife = false
+
+-- Toggle
+NEBROLIB.createToggle(settingTab, "Auto Haki", false, function(state)
+    AutoHaki = state
+
+    if state then
+        NEBROLIB.notify("Auto Haki Enabled", "success")
+        task.spawn(function()
+            task.wait(0.3)
+            if AutoHaki then
+                pcall(function()
+                    if not hakiUsedThisLife then
+                        hakiUsedThisLife = true
+                        CommF:InvokeServer("Buso")
+                    end
+                end)
+            end
+        end)
+    else
+        NEBROLIB.notify("Auto Haki Disabled", "error")
+    end
+end)
+
+-- Function (نفس النظام الأصلي)
+local function TryEnableHaki()
+    if not AutoHaki then return end
+    if hakiUsedThisLife then return end
+
+    hakiUsedThisLife = true
+
+    pcall(function()
+        CommF:InvokeServer("Buso")
+    end)
+end
+
+-- عند الريسباون
+LocalPlayer.CharacterAdded:Connect(function()
+    hakiUsedThisLife = false
+    task.wait(0.5)
+    TryEnableHaki()
+end)
+
+-- عند تشغيل السكربت
+if LocalPlayer.Character then
+    task.wait(0.5)
+    TryEnableHaki()
+end
+
+-- Toggle UI
+local AutoChestEnabled = false
+
+NEBROLIB.createToggle(settingTab, "Auto Farm Chest", false, function(state)
+    AutoChestEnabled = state
+    getgenv().Settings.AutoChest = state
+
+    if state then
+        NEBROLIB.notify("Auto Farm Chests Enabled", "success")
+    else
+        NEBROLIB.notify("Auto Farm Chests Disabled", "error")
+    end
+end)
+
+-- Settings
+getgenv().Settings = setmetatable({
+    AutoChest = false,
+    HopServer = false,
+    HopAfterCollected = 10,
+}, {
+    __index = function(_, key)
+        return nil
+    end,
+    __newindex = function(_, key, value)
+        rawset(getgenv().Settings, key, value)
+    end,
+})
+
+repeat task.wait() until game:IsLoaded()
+task.wait(2)
+
+-- Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+
+-- Player
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+
+LocalPlayer.CharacterAdded:Connect(function(char)
+    Character = char
+    HumanoidRootPart = char:WaitForChild("HumanoidRootPart")
+end)
+
+-- Vars
+local Speed = 400
+local placeId = game.PlaceId
+local ChestBlacklist = {}
+local ChestCount = 0
+local CurrentTween = nil
+
+-- Team Join
+local function JoinTeam()
+    if not AutoChestEnabled then return end
+
+    local player = Players.LocalPlayer
+    if player.Team ~= game.Teams.Marines and player.Team ~= game.Teams.Pirates then
+        ReplicatedStorage.Remotes.CommF_:InvokeServer("SetTeam", "Marines")
+    end
+end
+
+-- Noclip
+local function enableNoclip()
+    return RunService.Stepped:Connect(function()
+        if not AutoChestEnabled then return end
+
+        for _, part in ipairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end)
+end
+
+-- Tween
+local function tweenToPosition(targetPosition, callback)
+    if not AutoChestEnabled then return end
+
+    if CurrentTween then
+        CurrentTween:Cancel()
+    end
+
+    local distance = (targetPosition - HumanoidRootPart.Position).Magnitude
+    if distance < 1111 then
+        HumanoidRootPart.CFrame = CFrame.new(targetPosition)
+        if callback then callback() end
+        return
+    end
+
+    local noclip = enableNoclip()
+
+    local tween = TweenService:Create(
+        HumanoidRootPart,
+        TweenInfo.new(distance / Speed, Enum.EasingStyle.Linear),
+        {CFrame = CFrame.new(targetPosition)}
+    )
+
+    tween:Play()
+
+    CurrentTween = tween
+
+    tween.Completed:Connect(function()
+        if noclip then noclip:Disconnect() end
+        if callback then callback() end
+    end)
+end
+
+-- Get Chest
+local function getClosestChest()
+    local ChestModels = workspace:FindFirstChild("ChestModels")
+    if not ChestModels then return end
+
+    local closest, dist = nil, math.huge
+
+    for _, chest in pairs(ChestModels:GetChildren()) do
+        if chest:IsA("Model") and chest.PrimaryPart and not ChestBlacklist[chest] then
+            local d = (HumanoidRootPart.Position - chest.PrimaryPart.Position).Magnitude
+            if d < dist then
+                closest = chest
+                dist = d
+            end
+        end
+    end
+
+    return closest
+end
+
+-- Chest Added
+local function onChestAdded(chest)
+    if not AutoChestEnabled then return end
+
+    if chest:IsA("Model") and chest.PrimaryPart then
+        tweenToPosition(chest.PrimaryPart.Position, function()
+            ChestBlacklist[chest] = true
+            ChestCount += 1
+        end)
+    end
+end
+
+-- Main Farm
+local function startFarm()
+    JoinTeam()
+
+    while task.wait(0.2) do
+        if not AutoChestEnabled then continue end
+
+        local chest = getClosestChest()
+
+        if chest then
+            tweenToPosition(chest.PrimaryPart.Position, function()
+                ChestBlacklist[chest] = true
+                ChestCount += 1
+            end)
+        end
+    end
+end
+
+-- Start
+workspace:WaitForChild("ChestModels").ChildAdded:Connect(onChestAdded)
+
+task.spawn(function()
+    while true do
+        if AutoChestEnabled then
+            startFarm()
+        end
+        task.wait(1)
+    end
+end)
+
+-- تعريف المتغيرات الأساسية
+local player11 = game.Players.LocalPlayer
+local character11 = player11.Character or player11.CharacterAdded:Wait()
+local humanoidRootPart11 = character11:WaitForChild("HumanoidRootPart")
+local WalkWater11 = nil
+local followCoroutine = nil
+
+-- التوغل
+NEBROLIB.createToggle(settingTab, "Walk On The Water", false, function(state)
+    if state then
+        NEBROLIB.notify("Walk On The Water Enabled", "success")
+
+        -- إنشاء الـ Part إذا لم يكن موجود
+        if not WalkWater11 then
+            WalkWater11 = Instance.new("Part")
+            WalkWater11.Name = "WalkWater"
+            WalkWater11.Size = Vector3.new(1100, 4, 1100)
+            WalkWater11.Anchored = true
+            WalkWater11.CanCollide = true
+            WalkWater11.Transparency = 1
+            WalkWater11.BrickColor = BrickColor.new("White")
+            WalkWater11.Parent = workspace
+
+            -- وضع الـ Part فوق الماء
+            local waterBasePlane11 = workspace.Map:WaitForChild("WaterBase-Plane")
+            WalkWater11.Position = waterBasePlane11.Position + Vector3.new(0, WalkWater11.Size.Y / 2, 0)
+
+            -- ضبط ارتفاع الـ Part
+            local function setHeight11(newHeight)
+                WalkWater11.Position = Vector3.new(
+                    WalkWater11.Position.X,
+                    newHeight + WalkWater11.Size.Y / 2,
+                    WalkWater11.Position.Z
+                )
+            end
+            setHeight11(-7.7)
+
+            -- متابعة اللاعب
+            local function followPlayerPosition()
+                while WalkWater11 do
+                    if character11 and humanoidRootPart11 then
+                        local newPos = humanoidRootPart11.Position
+                        WalkWater11.Position = Vector3.new(newPos.X, WalkWater11.Position.Y, newPos.Z)
+                    end
+                    wait(0.1)
+                end
+            end
+
+            followCoroutine = coroutine.create(followPlayerPosition)
+            coroutine.resume(followCoroutine)
+        end
+
+    else
+        NEBROLIB.notify("Walk On The Water Disabled", "error")
+
+        -- حذف الـ Part وإيقاف المتابعة
+        if WalkWater11 then
+            WalkWater11:Destroy()
+            WalkWater11 = nil
+        end
+        followCoroutine = nil
+    end
+end)
+
+-- إعادة تتبع اللاعب عند respawn
+player11.CharacterAdded:Connect(function(newCharacter)
+    character11 = newCharacter
+    humanoidRootPart11 = newCharacter:WaitForChild("HumanoidRootPart")
+
+    if ToggleWalkWater.CurrentValue and WalkWater11 then
+        followCoroutine = coroutine.create(function()
+            while WalkWater11 do
+                if character11 and humanoidRootPart11 then
+                    local newPos = humanoidRootPart11.Position
+                    WalkWater11.Position = Vector3.new(newPos.X, WalkWater11.Position.Y, newPos.Z)
+                end
+                wait(0.1)
+            end
+        end)
+        coroutine.resume(followCoroutine)
+    end
+end)
+
+NEBROLIB.createSection(teamTab, "Team")
+
+NEBROLIB.createButton(teamTab, "Pirates", function()
+game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("SetTeam","Pirates")
+    NEBROLIB.notify("You Are Now On The Pirates Team", "success")
+end)
+
+NEBROLIB.createButton(teamTab, "Marines", function()
+game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("SetTeam","Marines")
+    NEBROLIB.notify("You Are Now On The Marines Team", "success")
+end)
+
+NEBROLIB.createSection(weaponTab, "Weapon")
+
+-- FUNCTION (مرة وحدة فقط)
+local function BuyWeapon(weaponName)
+    pcall(function()
+        game:GetService("ReplicatedStorage")
+            :WaitForChild("Remotes")
+            :WaitForChild("CommF_")
+            :InvokeServer("BuyItem", weaponName)
+    end)
+end
+
+-- BUTTON 1
+NEBROLIB.createButton(weaponTab, "Buy Bisento", function()
+    BuyWeapon("Bisento")
+    NEBROLIB.notify("Bought Bisento!", "success")
+end)
+
+-- BUTTON 2
+NEBROLIB.createButton(weaponTab, "Buy Soul Cane", function()
+    BuyWeapon("Soul Cane")
+    NEBROLIB.notify("Bought Soul Cane!", "success")
+end)
+
+-- BUTTON 3
+NEBROLIB.createButton(weaponTab, "Buy Dual-Headed Blade", function()
+    BuyWeapon("Dual-Headed Blade")
+    NEBROLIB.notify("Bought Dual-Headed Blade!", "success")
+end)
+
+-- BUTTON 4
+NEBROLIB.createButton(weaponTab, "Buy Pipe", function()
+    BuyWeapon("Pipe")
+    NEBROLIB.notify("Bought Pipe!", "success")
+end)
+
+-- BUTTON 5
+NEBROLIB.createButton(weaponTab, "Buy Triple Katana", function()
+    BuyWeapon("Triple Katana")
+    NEBROLIB.notify("Bought Triple Katana!", "success")
+end)
+
+-- BUTTON 6
+NEBROLIB.createButton(weaponTab, "Buy Iron Mace", function()
+    BuyWeapon("Iron Mace")
+    NEBROLIB.notify("Bought Iron Mace!", "success")
+end)
+
+-- BUTTON 7
+NEBROLIB.createButton(weaponTab, "Buy Dual Katana", function()
+    BuyWeapon("Dual Katana")
+    NEBROLIB.notify("Bought Dual Katana!", "success")
+end)
+
+-- BUTTON 8
+NEBROLIB.createButton(weaponTab, "Buy Cutlass", function()
+    BuyWeapon("Cutlass")
+    NEBROLIB.notify("Bought Cutlass!", "success")
+end)
+
+-- BUTTON 9
+NEBROLIB.createButton(weaponTab, "Buy Katana", function()
+    BuyWeapon("Katana")
+    NEBROLIB.notify("Bought Katana!", "success")
+end)
+
+NEBROLIB.createButton(weaponTab, "Buy All Weapons", function()
+    local weapons = {
+        "Bisento",
+        "Soul Cane",
+        "Dual-Headed Blade",
+        "Pipe",
+        "Triple Katana",
+        "Iron Mace",
+        "Dual Katana",
+        "Cutlass",
+        "Katana"
+    }
+
+    for _, w in ipairs(weapons) do
+        BuyWeapon(w)
+        task.wait(0.2)
+    end
+
+    NEBROLIB.notify("All Weapons Purchased!", "success")
+end)
+
+NEBROLIB.createSection(fruitTab, "Fruit")
+
+-- FRUIT NOTIFIER
+
+local FruitNotifier = false
+
+NEBROLIB.createToggle(fruitTab, "Fruit Notifier", false, function(state)
+    FruitNotifier = state
+
+    if state then
+        NEBROLIB.notify("Fruit Notifier Enabled", "success")
+    else
+        NEBROLIB.notify("Fruit Notifier Disabled", "error")
+    end
+end)
+
+-- عند ظهور عنصر جديد في الوورك سبيس
+workspace.ChildAdded:Connect(function(child)
+    if not FruitNotifier then return end
+
+    if string.find(string.lower(child.Name), "fruit") then
+        task.wait(0.1)
+
+        pcall(function()
+            NEBROLIB.notify("Fruit Spawned: " .. child.Name, "success")
+        end)
+    end
+end)
+
+NEBROLIB.createButton(fruitTab, "Buy Random Fruit", function()
+
+    -- optional (إذا تحتاج getNil)
+    local function getNil(name, class)
+        for _, v in pairs(getnilinstances()) do
+            if v.ClassName == class and v.Name == name then
+                return v
+            end
+        end
+    end
+
+    -- شراء من Cousin
+    pcall(function()
+        game:GetService("ReplicatedStorage")
+            :WaitForChild("Remotes")
+            :WaitForChild("CommF_")
+            :InvokeServer("Cousin", "Buy")
+    end)
+
+    -- إشعار
+    NEBROLIB.notify("Random Fruit Purchased!", "success")
+
+end)
+
+-- AUTO SPIN (COUSIN)
+
+local AutoSpin = false
+local SpinDelay = 7200 -- المدة بين كل سبن (بالثواني) تقدر تغيرها
+
+NEBROLIB.createToggle(fruitTab, "Auto Spin Fruit", false, function(state)
+    AutoSpin = state
+
+    if state then
+        NEBROLIB.notify("Auto Spin Enabled", "success")
+
+        task.spawn(function()
+            while AutoSpin do
+                pcall(function()
+                    game:GetService("ReplicatedStorage")
+                        :WaitForChild("Remotes")
+                        :WaitForChild("CommF_")
+                        :InvokeServer("Cousin", "Buy")
+                end)
+
+                task.wait(SpinDelay)
+            end
+        end)
+
+    else
+        NEBROLIB.notify("Auto Spin Disabled", "error")
+    end
+end)
+
+-- FRUIT TELEPORT
+
+local FruitTP = false
+local Player = game.Players.LocalPlayer
+
+-- دالة TP إلى Handle
+local function TeleportToFruitHandle(fruit)
+    local Character = Player.Character
+    local Root = Character and Character:FindFirstChild("HumanoidRootPart")
+
+    if fruit and fruit:FindFirstChild("Handle") and Root then
+        Root.CFrame = fruit.Handle.CFrame
+    end
+end
+
+-- البحث عن الفواكه
+local function FindAndTP()
+    for _, v in pairs(workspace:GetChildren()) do
+        if string.find(string.lower(v.Name), "fruit") then
+            TeleportToFruitHandle(v)
+            return true
+        end
+    end
+    return false
+end
+
+-- Toggle
+NEBROLIB.createToggle(fruitTab, "Teleport To Fruits", false, function(state)
+    FruitTP = state
+
+    if state then
+        NEBROLIB.notify("Fruit Teleport Enabled", "success")
+
+        -- Loop
+        task.spawn(function()
+            while FruitTP do
+                pcall(function()
+                    FindAndTP()
+                end)
+                task.wait(0.2) -- تم تهدئته لتقليل اللاغ
+            end
+        end)
+
+    else
+        NEBROLIB.notify("Fruit Teleport Disabled", "error")
+    end
+end)
+
+-- عند ظهور فاكهة جديدة
+workspace.ChildAdded:Connect(function(child)
+    if not FruitTP then return end
+
+    if string.find(string.lower(child.Name), "fruit") then
+        task.wait(0.1)
+        pcall(function()
+            TeleportToFruitHandle(child)
+        end)
+    end
+end)
+
+-- عند الموت / إعادة الظهور
+Player.CharacterAdded:Connect(function(char)
+    if not FruitTP then return end
+
+    task.wait(1)
+
+    task.spawn(function()
+        while FruitTP do
+            pcall(function()
+                FindAndTP()
+            end)
+            task.wait(0.5)
+        end
+    end)
+end)
