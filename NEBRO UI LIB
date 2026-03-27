@@ -1,0 +1,919 @@
+-- NEBROLIB ADVANCED UI LIBRARY
+-- Cyan theme, compact design, selected tab stroke, stacked notifications
+-- Made by: NEBROLIB
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local gui = player:WaitForChild("PlayerGui")
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "NEBROLIBUI"
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
+screenGui.Parent = gui
+
+local NEBROLIB = {}
+if getgenv then
+	getgenv().NEBROLIB = NEBROLIB
+end
+_G.NEBROLIB = NEBROLIB
+
+local Theme = {
+	Accent = Color3.fromRGB(92, 220, 255),      -- Cyan
+	Accent2 = Color3.fromRGB(26, 34, 46),
+	Accent3 = Color3.fromRGB(18, 24, 34),
+	BG = Color3.fromRGB(12, 16, 22),
+	Panel = Color3.fromRGB(16, 20, 28),
+	Panel2 = Color3.fromRGB(20, 26, 36),
+	Text = Color3.fromRGB(255, 255, 255),
+	Muted = Color3.fromRGB(180, 190, 200),
+	Success = Color3.fromRGB(85, 255, 150),
+	Error = Color3.fromRGB(255, 90, 90),
+	Warning = Color3.fromRGB(255, 205, 95),
+}
+
+local function corner(parent, radius)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = radius or UDim.new(0, 8)
+	c.Parent = parent
+	return c
+end
+
+local function stroke(parent, thickness, color, transparency)
+	local s = Instance.new("UIStroke")
+	s.Thickness = thickness or 1.5
+	s.Color = color or Theme.Accent
+	s.Transparency = transparency or 0.1
+	s.Parent = parent
+	return s
+end
+
+local function padding(parent, l, t, r, b)
+	local p = Instance.new("UIPadding")
+	p.PaddingLeft = UDim.new(0, l or 0)
+	p.PaddingTop = UDim.new(0, t or 0)
+	p.PaddingRight = UDim.new(0, r or 0)
+	p.PaddingBottom = UDim.new(0, b or 0)
+	p.Parent = parent
+	return p
+end
+
+local function makeDraggable(frame, handle)
+	handle = handle or frame
+	local dragging = false
+	local dragInput
+	local mousePos
+	local framePos
+
+	handle.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			mousePos = input.Position
+			framePos = frame.Position
+
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+
+	handle.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and input == dragInput then
+			local delta = input.Position - mousePos
+			frame.Position = UDim2.new(
+				framePos.X.Scale,
+				framePos.X.Offset + delta.X,
+				framePos.Y.Scale,
+				framePos.Y.Offset + delta.Y
+			)
+		end
+	end)
+end
+
+local windowConfig = {
+	Title = "NEBROLIB",
+	SubTitle = "NEBRO Lib",
+	Author = "by : nebro",
+	Width = 500,
+	Height = 300,
+}
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+mainFrame.Size = UDim2.new(0, windowConfig.Width, 0, windowConfig.Height)
+mainFrame.BackgroundColor3 = Theme.BG
+mainFrame.BorderSizePixel = 0
+mainFrame.Visible = false
+mainFrame.Parent = screenGui
+corner(mainFrame, UDim.new(0, 10))
+stroke(mainFrame, 2, Theme.Accent, 0.05)
+
+local topBar = Instance.new("Frame")
+topBar.Name = "TopBar"
+topBar.BackgroundTransparency = 1
+topBar.Size = UDim2.new(1, 0, 0, 44)
+topBar.Parent = mainFrame
+
+local title = Instance.new("TextLabel")
+title.BackgroundTransparency = 1
+title.Position = UDim2.new(0, 16, 0, 2)
+title.Size = UDim2.new(0, 220, 0, 24)
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 20
+title.TextColor3 = Theme.Accent
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Text = windowConfig.Title
+title.Parent = topBar
+
+local title2 = Instance.new("TextLabel")
+title2.BackgroundTransparency = 1
+title2.Position = UDim2.new(0, 116, 0, 2)
+title2.Size = UDim2.new(0, 180, 0, 24)
+title2.Font = Enum.Font.GothamBlack
+title2.TextSize = 18
+title2.TextColor3 = Theme.Accent
+title2.TextXAlignment = Enum.TextXAlignment.Left
+title2.Text = windowConfig.SubTitle
+title2.Parent = topBar
+
+local subtitle = Instance.new("TextLabel")
+subtitle.BackgroundTransparency = 1
+subtitle.Position = UDim2.new(0, 16, 0, 20)
+subtitle.Size = UDim2.new(1, -120, 0, 18)
+subtitle.Font = Enum.Font.Gotham
+subtitle.TextSize = 13
+subtitle.TextColor3 = Theme.Muted
+subtitle.TextXAlignment = Enum.TextXAlignment.Left
+subtitle.Text = windowConfig.Author
+subtitle.Parent = topBar
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 28, 0, 28)
+closeBtn.Position = UDim2.new(1, -36, 0, 8)
+closeBtn.BackgroundColor3 = Theme.Panel2
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Theme.Accent
+closeBtn.Font = Enum.Font.GothamBlack
+closeBtn.TextSize = 16
+closeBtn.BorderSizePixel = 0
+closeBtn.Parent = topBar
+corner(closeBtn, UDim.new(0, 7))
+stroke(closeBtn, 1.5, Theme.Accent, 0.12)
+
+local minBtn = Instance.new("TextButton")
+minBtn.Size = UDim2.new(0, 28, 0, 28)
+minBtn.Position = UDim2.new(1, -68, 0, 8)
+minBtn.BackgroundColor3 = Theme.Panel2
+minBtn.Text = "-"
+minBtn.TextColor3 = Theme.Accent
+minBtn.Font = Enum.Font.GothamBlack
+minBtn.TextSize = 18
+minBtn.BorderSizePixel = 0
+minBtn.Parent = topBar
+corner(minBtn, UDim.new(0, 7))
+stroke(minBtn, 1.5, Theme.Accent, 0.12)
+
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Name = "ToggleButton"
+toggleBtn.Size = UDim2.new(0, 38, 0, 38)
+toggleBtn.Position = UDim2.new(0, 10, 0.5, -19)
+toggleBtn.BackgroundColor3 = Theme.Panel2
+toggleBtn.Text = "NB"
+toggleBtn.TextColor3 = Theme.Accent
+toggleBtn.Font = Enum.Font.GothamBlack
+toggleBtn.TextSize = 13
+toggleBtn.BorderSizePixel = 0
+toggleBtn.Active = true
+toggleBtn.Parent = screenGui
+corner(toggleBtn, UDim.new(0, 8))
+stroke(toggleBtn, 1.5, Theme.Accent, 0.12)
+
+local tabContainer = Instance.new("ScrollingFrame")
+tabContainer.Name = "TabContainer"
+tabContainer.Size = UDim2.new(0, 120, 1, -48)
+tabContainer.Position = UDim2.new(0, 0, 0, 44)
+tabContainer.BackgroundColor3 = Theme.Panel
+tabContainer.BorderSizePixel = 0
+tabContainer.ScrollBarThickness = 5
+tabContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
+tabContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+tabContainer.VerticalScrollBarInset = Enum.ScrollBarInset.Always
+tabContainer.Parent = mainFrame
+corner(tabContainer, UDim.new(0, 0))
+
+local tabList = Instance.new("UIListLayout")
+tabList.Padding = UDim.new(0, 6)
+tabList.SortOrder = Enum.SortOrder.LayoutOrder
+tabList.Parent = tabContainer
+
+local pagesContainer = Instance.new("ScrollingFrame")
+pagesContainer.Name = "PagesContainer"
+pagesContainer.Size = UDim2.new(1, -132, 1, -56)
+pagesContainer.Position = UDim2.new(0, 126, 0, 48)
+pagesContainer.BackgroundTransparency = 1
+pagesContainer.BorderSizePixel = 0
+pagesContainer.ScrollBarThickness = 7
+pagesContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
+pagesContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+pagesContainer.VerticalScrollBarInset = Enum.ScrollBarInset.Always
+pagesContainer.Parent = mainFrame
+
+local pagesList = Instance.new("UIListLayout")
+pagesList.Padding = UDim.new(0, 12)
+pagesList.SortOrder = Enum.SortOrder.LayoutOrder
+pagesList.Parent = pagesContainer
+
+local notifHolder = Instance.new("Frame")
+notifHolder.Name = "Notifications"
+notifHolder.BackgroundTransparency = 1
+notifHolder.Size = UDim2.new(0, 290, 0, 0)
+notifHolder.Position = UDim2.new(0.5, -145, 0, 12)
+notifHolder.Parent = screenGui
+
+local notifList = Instance.new("UIListLayout")
+notifList.SortOrder = Enum.SortOrder.LayoutOrder
+notifList.Padding = UDim.new(0, 6)
+notifList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+notifList.Parent = notifHolder
+
+local notifCounter = 0
+local notifActive = {}
+
+local function pushNotification(text, kind)
+	notifCounter -= 1
+
+	local c = Theme.Accent
+	if kind == "success" then
+		c = Theme.Success
+	elseif kind == "error" then
+		c = Theme.Error
+	elseif kind == "warning" then
+		c = Theme.Warning
+	elseif kind == "info" then
+		c = Theme.Accent
+	end
+
+	local notif = Instance.new("Frame")
+	notif.Size = UDim2.new(0, 290, 0, 46)
+	notif.BackgroundColor3 = Theme.Panel2
+	notif.BorderSizePixel = 0
+	notif.LayoutOrder = notifCounter
+	notif.Parent = notifHolder
+	corner(notif, UDim.new(0, 10))
+	stroke(notif, 1.5, c, 0.08)
+
+	local accent = Instance.new("Frame")
+	accent.Size = UDim2.new(0, 4, 1, -14)
+	accent.Position = UDim2.new(0, 10, 0, 7)
+	accent.BackgroundColor3 = c
+	accent.BorderSizePixel = 0
+	accent.Parent = notif
+	corner(accent, UDim.new(1, 0))
+
+	local lbl = Instance.new("TextLabel")
+	lbl.BackgroundTransparency = 1
+	lbl.Position = UDim2.new(0, 22, 0, 0)
+	lbl.Size = UDim2.new(1, -32, 1, 0)
+	lbl.Font = Enum.Font.GothamBold
+	lbl.TextSize = 15
+	lbl.TextColor3 = Theme.Text
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.TextWrapped = true
+	lbl.Text = tostring(text)
+	lbl.Parent = notif
+
+	table.insert(notifActive, notif)
+
+	task.delay(2.2, function()
+		if notif and notif.Parent then
+			local info = TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+			TweenService:Create(notif, info, {BackgroundTransparency = 1}):Play()
+			TweenService:Create(lbl, info, {TextTransparency = 1}):Play()
+			TweenService:Create(accent, info, {BackgroundTransparency = 1}):Play()
+			task.wait(0.24)
+			if notif then notif:Destroy() end
+		end
+	end)
+end
+
+local minimized = false
+local expandedSize = UDim2.new(0, windowConfig.Width, 0, windowConfig.Height)
+
+local function closeAnimation()
+	local t = 0.2
+	local tween = TweenService:Create(mainFrame, TweenInfo.new(t, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+		Size = UDim2.new(0, 0, 0, 0)
+	})
+	tween:Play()
+	tween.Completed:Wait()
+	mainFrame.Visible = false
+end
+
+local function setVisible(visible)
+	if visible then
+		mainFrame.Size = UDim2.new(0, 0, 0, 0)
+		mainFrame.Visible = true
+		minimized = false
+		tabContainer.Visible = true
+		pagesContainer.Visible = true
+		minBtn.Text = "-"
+		TweenService:Create(mainFrame, TweenInfo.new(0.24, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+			Size = expandedSize
+		}):Play()
+	else
+		closeAnimation()
+	end
+end
+
+local function makeWindow(titleStr, subtitleStr, authorStr)
+	windowConfig.Title = titleStr or windowConfig.Title
+	windowConfig.SubTitle = subtitleStr or windowConfig.SubTitle
+	windowConfig.Author = authorStr or windowConfig.Author
+	title.Text = windowConfig.Title
+	title2.Text = windowConfig.SubTitle
+	subtitle.Text = windowConfig.Author
+end
+
+local function makeIntro(introTextStr)
+	local introFrame = Instance.new("Frame")
+	introFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+	introFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+	introFrame.Size = UDim2.new(0, 0, 0, 0)
+	introFrame.BackgroundColor3 = Theme.BG
+	introFrame.BorderSizePixel = 0
+	introFrame.ZIndex = 20
+	introFrame.Parent = screenGui
+	corner(introFrame, UDim.new(0, 12))
+	stroke(introFrame, 2, Theme.Accent, 0.08)
+
+	local introText = Instance.new("TextLabel")
+	introText.AnchorPoint = Vector2.new(0.5, 0.5)
+	introText.Position = UDim2.new(0.5, 0, 0.5, 0)
+	introText.Size = UDim2.new(1, -18, 1, -18)
+	introText.BackgroundTransparency = 1
+	introText.Text = introTextStr or "NEBROLIB"
+	introText.TextColor3 = Theme.Accent
+	introText.TextStrokeTransparency = 0.6
+	introText.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	introText.Font = Enum.Font.GothamBlack
+	introText.TextScaled = true
+	introText.ZIndex = 21
+	introText.Parent = introFrame
+
+	local showW, showH = 320, 64
+	introFrame.Size = UDim2.new(0, 0, 0, showH)
+	introFrame.Visible = true
+	introFrame:TweenSize(UDim2.new(0, showW, 0, showH), Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.32, true)
+	task.wait(0.38)
+	task.wait(1.8)
+	introFrame:TweenPosition(UDim2.new(0.5, 0, 0.5, -18), Enum.EasingDirection.In, Enum.EasingStyle.Quad, 0.22, true)
+	introFrame:TweenSize(UDim2.new(0, 0, 0, showH), Enum.EasingDirection.In, Enum.EasingStyle.Quad, 0.22, true)
+	task.wait(0.24)
+	introFrame:Destroy()
+end
+
+local tabs = {}
+local selectedTab
+
+local function createExampleBox(parent, height)
+	local box = Instance.new("Frame")
+	box.Size = UDim2.new(1, -8, 0, height or 72)
+	box.BackgroundColor3 = Theme.Panel
+	box.BorderSizePixel = 0
+	box.AutomaticSize = Enum.AutomaticSize.Y
+	box.Parent = parent
+	corner(box, UDim.new(0, 8))
+	stroke(box, 1.25, Theme.Accent, 0.1)
+
+	local pad = padding(box, 12, 10, 12, 10)
+	return box
+end
+
+local function deselectAllTabs()
+	for _, tab in ipairs(tabs) do
+		tab.page.Visible = false
+		tab.button.BackgroundColor3 = Theme.Panel2
+		tab.stroke.Color = Theme.Accent
+		tab.stroke.Transparency = 1
+	end
+end
+
+local function createTab(name, iconText)
+	local tabBtn = Instance.new("TextButton")
+	tabBtn.Size = UDim2.new(1, -8, 0, 36)
+	tabBtn.BackgroundColor3 = Theme.Panel2
+	tabBtn.Text = ""
+	tabBtn.BorderSizePixel = 0
+	tabBtn.Parent = tabContainer
+	corner(tabBtn, UDim.new(0, 8))
+	local tabStroke = stroke(tabBtn, 2, Theme.Accent, 1)
+
+	local iconBox = Instance.new("Frame")
+	iconBox.Size = UDim2.new(0, 30, 0, 30)
+	iconBox.Position = UDim2.new(0, 4, 0.5, -15)
+	iconBox.BackgroundColor3 = Theme.BG
+	iconBox.BorderSizePixel = 0
+	iconBox.Parent = tabBtn
+	corner(iconBox, UDim.new(0, 7))
+	stroke(iconBox, 1.2, Theme.Accent, 0.25)
+
+	local iconLbl = Instance.new("TextLabel")
+	iconLbl.BackgroundTransparency = 1
+	iconLbl.Size = UDim2.new(1, 0, 1, 0)
+	iconLbl.Text = iconText or "NB"
+	iconLbl.Font = Enum.Font.GothamBlack
+	iconLbl.TextSize = 14
+	iconLbl.TextColor3 = Theme.Accent
+	iconLbl.Parent = iconBox
+
+	local lbl = Instance.new("TextLabel")
+	lbl.BackgroundTransparency = 1
+	lbl.Position = UDim2.new(0, 40, 0, 0)
+	lbl.Size = UDim2.new(1, -44, 1, 0)
+	lbl.Text = name
+	lbl.Font = Enum.Font.GothamBold
+	lbl.TextSize = 15
+	lbl.TextColor3 = Theme.Text
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.Parent = tabBtn
+
+	local page = Instance.new("Frame")
+	page.Size = UDim2.new(1, 0, 0, 0)
+	page.BackgroundTransparency = 1
+	page.Visible = false
+	page.AutomaticSize = Enum.AutomaticSize.Y
+	page.Parent = pagesContainer
+
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 12)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = page
+
+	local entry = {
+		button = tabBtn,
+		page = page,
+		stroke = tabStroke,
+	}
+
+	tabBtn.MouseButton1Click:Connect(function()
+		deselectAllTabs()
+		page.Visible = true
+		tabBtn.BackgroundColor3 = Theme.Accent2
+		tabStroke.Transparency = 0
+		tabStroke.Color = Theme.Accent
+		selectedTab = entry
+	end)
+
+	table.insert(tabs, entry)
+
+	if not selectedTab then
+		task.defer(function()
+			if page and page.Parent then
+				tabBtn:Activate()
+			end
+		end)
+	end
+
+	return page
+end
+
+local function createButton(parent, text, callback)
+	return createExampleBox(parent, 56, function(box)
+	end)
+end
+
+function NEBROLIB.makeWindow(titleStr, subtitleStr, authorStr)
+	makeWindow(titleStr, subtitleStr, authorStr)
+end
+
+function NEBROLIB.makeIntro(introTextStr)
+	makeIntro(introTextStr)
+end
+
+function NEBROLIB.notify(text, kind)
+	pushNotification(text, kind)
+end
+
+function NEBROLIB.createTab(name, iconText)
+	return createTab(name, iconText)
+end
+
+function NEBROLIB.createSection(parent, text)
+	local lbl = Instance.new("TextLabel")
+	lbl.BackgroundTransparency = 1
+	lbl.Size = UDim2.new(1, -8, 0, 22)
+	lbl.Text = "  " .. tostring(text)
+	lbl.Font = Enum.Font.GothamBold
+	lbl.TextSize = 16
+	lbl.TextColor3 = Theme.Accent
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.Parent = parent
+	return lbl
+end
+
+function NEBROLIB.createTextLabel(parent, text)
+	local box = createExampleBox(parent, 56)
+	local lbl = Instance.new("TextLabel")
+	lbl.BackgroundTransparency = 1
+	lbl.Size = UDim2.new(1, 0, 1, 0)
+	lbl.Text = tostring(text)
+	lbl.Font = Enum.Font.Gotham
+	lbl.TextSize = 15
+	lbl.TextWrapped = true
+	lbl.TextColor3 = Theme.Text
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.TextYAlignment = Enum.TextYAlignment.Top
+	lbl.Parent = box
+	return box
+end
+
+function NEBROLIB.createParagraph(parent, text)
+	local box = createExampleBox(parent, 80)
+	local lbl = Instance.new("TextLabel")
+	lbl.BackgroundTransparency = 1
+	lbl.Size = UDim2.new(1, 0, 1, 0)
+	lbl.Text = tostring(text)
+	lbl.Font = Enum.Font.Gotham
+	lbl.TextSize = 14
+	lbl.TextWrapped = true
+	lbl.TextColor3 = Theme.Muted
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.TextYAlignment = Enum.TextYAlignment.Top
+	lbl.Parent = box
+	return box
+end
+
+function NEBROLIB.createButton(parent, text, callback)
+	local box = createExampleBox(parent, 52)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1, 0, 0, 34)
+	btn.Position = UDim2.new(0, 0, 0, 0)
+	btn.BackgroundColor3 = Theme.Accent
+	btn.BorderSizePixel = 0
+	btn.Text = tostring(text)
+	btn.TextColor3 = Color3.fromRGB(0, 0, 0)
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 16
+	btn.Parent = box
+	corner(btn, UDim.new(0, 8))
+	stroke(btn, 1.2, Color3.fromRGB(255, 255, 255), 0.6)
+
+	btn.MouseButton1Click:Connect(function()
+		if callback then
+			callback()
+		end
+	end)
+
+	return box
+end
+
+function NEBROLIB.createTextBox(parent, placeholder, callback)
+	local box = createExampleBox(parent, 56)
+	local txt = Instance.new("TextBox")
+	txt.Size = UDim2.new(1, 0, 0, 34)
+	txt.BackgroundColor3 = Theme.BG
+	txt.BorderSizePixel = 0
+	txt.PlaceholderText = tostring(placeholder or "Enter...")
+	txt.Text = ""
+	txt.ClearTextOnFocus = false
+	txt.TextColor3 = Theme.Text
+	txt.PlaceholderColor3 = Theme.Muted
+	txt.Font = Enum.Font.Gotham
+	txt.TextSize = 15
+	txt.Parent = box
+	corner(txt, UDim.new(0, 8))
+	stroke(txt, 1.2, Theme.Accent, 0.2)
+
+	txt.FocusLost:Connect(function(enterPressed)
+		if enterPressed and callback then
+			callback(txt.Text)
+		end
+	end)
+
+	return box
+end
+
+function NEBROLIB.createDropdown(parent, options, defaultIndex, callback)
+	options = options or {}
+	local box = createExampleBox(parent, 60)
+
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1, 0, 0, 34)
+	btn.BackgroundColor3 = Theme.BG
+	btn.BorderSizePixel = 0
+	btn.TextColor3 = Theme.Text
+	btn.Font = Enum.Font.Gotham
+	btn.TextSize = 15
+	btn.Parent = box
+	corner(btn, UDim.new(0, 8))
+	stroke(btn, 1.2, Theme.Accent, 0.2)
+
+	local selected = options[defaultIndex or 1] or options[1] or "None"
+	btn.Text = selected
+
+	local open = false
+	local dropFrame = Instance.new("Frame")
+	dropFrame.Position = UDim2.new(0, 0, 1, 4)
+	dropFrame.Size = UDim2.new(1, 0, 0, 0)
+	dropFrame.BackgroundColor3 = Theme.BG
+	dropFrame.BorderSizePixel = 0
+	dropFrame.Visible = false
+	dropFrame.Parent = box
+	corner(dropFrame, UDim.new(0, 8))
+	stroke(dropFrame, 1.2, Theme.Accent, 0.2)
+
+	local dropScroll = Instance.new("ScrollingFrame")
+	dropScroll.BackgroundTransparency = 1
+	dropScroll.Size = UDim2.new(1, 0, 1, 0)
+	dropScroll.ScrollBarThickness = 5
+	dropScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	dropScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+	dropScroll.Parent = dropFrame
+
+	local dropList = Instance.new("UIListLayout")
+	dropList.Padding = UDim.new(0, 4)
+	dropList.SortOrder = Enum.SortOrder.LayoutOrder
+	dropList.Parent = dropScroll
+
+	local dropPad = padding(dropScroll, 6, 6, 6, 6)
+
+	local function refreshHeight()
+		local h = math.clamp(#options * 32 + 12, 36, 190)
+		dropFrame.Size = UDim2.new(1, 0, 0, h)
+		dropScroll.CanvasSize = UDim2.new(0, 0, 0, #options * 34 + 8)
+	end
+
+	for _, opt in ipairs(options) do
+		local optBtn = Instance.new("TextButton")
+		optBtn.Size = UDim2.new(1, 0, 0, 28)
+		optBtn.BackgroundColor3 = Theme.Panel2
+		optBtn.BorderSizePixel = 0
+		optBtn.Text = tostring(opt)
+		optBtn.TextColor3 = Theme.Text
+		optBtn.Font = Enum.Font.Gotham
+		optBtn.TextSize = 14
+		optBtn.Parent = dropScroll
+		corner(optBtn, UDim.new(0, 6))
+		stroke(optBtn, 1, Theme.Accent, 0.45)
+
+		optBtn.MouseButton1Click:Connect(function()
+			selected = opt
+			btn.Text = tostring(opt)
+			open = false
+			dropFrame.Visible = false
+			if callback then
+				callback(opt)
+			end
+		end)
+	end
+
+	refreshHeight()
+
+	btn.MouseButton1Click:Connect(function()
+		open = not open
+		dropFrame.Visible = open
+	end)
+
+	return box
+end
+
+function NEBROLIB.createToggle(parent, text, default, callback)
+	local box = createExampleBox(parent, 54)
+
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.new(1, -70, 1, 0)
+	label.Text = tostring(text)
+	label.TextColor3 = Theme.Text
+	label.Font = Enum.Font.Gotham
+	label.TextSize = 15
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = box
+
+	local toggle = Instance.new("TextButton")
+	toggle.Size = UDim2.new(0, 54, 0, 26)
+	toggle.Position = UDim2.new(1, -58, 0.5, -13)
+	toggle.BackgroundColor3 = default and Theme.Accent or Theme.Panel2
+	toggle.Text = ""
+	toggle.BorderSizePixel = 0
+	toggle.AutoButtonColor = false
+	toggle.Parent = box
+	corner(toggle, UDim.new(1, 0))
+	stroke(toggle, 1.2, Theme.Accent, 0.15)
+
+	local knob = Instance.new("Frame")
+	knob.Size = UDim2.new(0, 22, 0, 22)
+	knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	knob.BorderSizePixel = 0
+	knob.Parent = toggle
+	corner(knob, UDim.new(1, 0))
+
+	local state = default and true or false
+	local function update(animated)
+		if state then
+			toggle.BackgroundColor3 = Theme.Accent
+			if animated then
+				knob:TweenPosition(UDim2.new(1, -24, 0.5, -11), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.12, true)
+			else
+				knob.Position = UDim2.new(1, -24, 0.5, -11)
+			end
+		else
+			toggle.BackgroundColor3 = Theme.Panel2
+			if animated then
+				knob:TweenPosition(UDim2.new(0, 2, 0.5, -11), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.12, true)
+			else
+				knob.Position = UDim2.new(0, 2, 0.5, -11)
+			end
+		end
+	end
+
+	toggle.MouseButton1Click:Connect(function()
+		state = not state
+		update(true)
+		if callback then
+			callback(state)
+		end
+	end)
+
+	update(false)
+	return box
+end
+
+function NEBROLIB.createSlider(parent, labelText, min, max, defaultValue, callback)
+	min = tonumber(min) or 0
+	max = tonumber(max) or 100
+	defaultValue = tonumber(defaultValue) or min
+
+	local box = createExampleBox(parent, 68)
+
+	local topRow = Instance.new("Frame")
+	topRow.BackgroundTransparency = 1
+	topRow.Size = UDim2.new(1, 0, 0, 18)
+	topRow.Parent = box
+
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.new(1, -56, 1, 0)
+	label.Text = tostring(labelText or "Slider")
+	label.TextColor3 = Theme.Text
+	label.Font = Enum.Font.Gotham
+	label.TextSize = 15
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = topRow
+
+	local valueLabel = Instance.new("TextLabel")
+	valueLabel.BackgroundTransparency = 1
+	valueLabel.Position = UDim2.new(1, -56, 0, 0)
+	valueLabel.Size = UDim2.new(0, 56, 1, 0)
+	valueLabel.Text = tostring(defaultValue)
+	valueLabel.TextColor3 = Theme.Accent
+	valueLabel.Font = Enum.Font.GothamBold
+	valueLabel.TextSize = 15
+	valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+	valueLabel.Parent = topRow
+
+	local bar = Instance.new("Frame")
+	bar.Position = UDim2.new(0, 0, 0, 34)
+	bar.Size = UDim2.new(1, 0, 0, 12)
+	bar.BackgroundColor3 = Theme.Panel2
+	bar.BorderSizePixel = 0
+	bar.Parent = box
+	corner(bar, UDim.new(1, 0))
+	stroke(bar, 1, Theme.Accent, 0.25)
+
+	local fill = Instance.new("Frame")
+	fill.BackgroundColor3 = Theme.Accent
+	fill.BorderSizePixel = 0
+	fill.Parent = bar
+	corner(fill, UDim.new(1, 0))
+
+	local knob = Instance.new("Frame")
+	knob.Size = UDim2.new(0, 18, 0, 18)
+	knob.BackgroundColor3 = Theme.Accent
+	knob.BorderSizePixel = 0
+	knob.Parent = bar
+	corner(knob, UDim.new(1, 0))
+	stroke(knob, 1, Color3.fromRGB(255, 255, 255), 0.5)
+
+	local dragging = false
+
+	local function setValue(v, fire)
+		v = math.clamp(math.floor(v + 0.5), min, max)
+		local percent = (v - min) / math.max(1, (max - min))
+		fill.Size = UDim2.new(percent, 0, 1, 0)
+		knob.Position = UDim2.new(percent, -9, 0.5, -9)
+		valueLabel.Text = tostring(v)
+		if fire and callback then
+			callback(v)
+		end
+	end
+
+	local function getValueFromX(x)
+		local rel = x - bar.AbsolutePosition.X
+		local percent = math.clamp(rel / math.max(1, bar.AbsoluteSize.X), 0, 1)
+		return min + ((max - min) * percent)
+	end
+
+	bar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			setValue(getValueFromX(input.Position.X), true)
+		end
+	end)
+
+	knob.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			setValue(getValueFromX(input.Position.X), true)
+		end
+	end)
+
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+
+	setValue(defaultValue, false)
+	return box
+end
+
+function NEBROLIB.createTextButton(parent, text, callback)
+	return NEBROLIB.createButton(parent, text, callback)
+end
+
+function NEBROLIB.show()
+	setVisible(true)
+end
+
+function NEBROLIB.hide()
+	closeAnimation()
+end
+
+makeDraggable(mainFrame, topBar)
+makeDraggable(toggleBtn, toggleBtn)
+
+closeBtn.MouseButton1Click:Connect(function()
+	closeAnimation()
+end)
+
+minBtn.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	if minimized then
+		tabContainer.Visible = false
+		pagesContainer.Visible = false
+		minBtn.Text = "+"
+		local tween = TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = UDim2.new(0, windowConfig.Width, 0, 44)
+		})
+		tween:Play()
+	else
+		tabContainer.Visible = true
+		pagesContainer.Visible = true
+		minBtn.Text = "-"
+		local tween = TweenService:Create(mainFrame, TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+			Size = expandedSize
+		})
+		tween:Play()
+	end
+end)
+
+toggleBtn.MouseButton1Click:Connect(function()
+	if mainFrame.Visible then
+		closeAnimation()
+	else
+		minimized = false
+		tabContainer.Visible = true
+		pagesContainer.Visible = true
+		minBtn.Text = "-"
+		mainFrame.Size = UDim2.new(0, 0, 0, 0)
+		mainFrame.Visible = true
+		TweenService:Create(mainFrame, TweenInfo.new(0.24, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+			Size = expandedSize
+		}):Play()
+	end
+end)
+
+NEBROLIB.screenGui = screenGui
+NEBROLIB.mainFrame = mainFrame
+NEBROLIB.windowConfig = windowConfig
+
+return NEBROLIB
