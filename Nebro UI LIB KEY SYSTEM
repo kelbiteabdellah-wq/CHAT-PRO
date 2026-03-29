@@ -1,5 +1,6 @@
 -- NEBROLIB ADVANCED UI LIBRARY
--- Compact Redz-style layout, Cyan theme, Utilities, Key System, Copy Key Link, Recheck every 1 hour
+-- Compact Redz-style layout, Cyan theme, Key System, stacked notifications
+-- Utilities removed by request
 -- Made by: NEBROLIB
 
 local Players = game:GetService("Players")
@@ -22,9 +23,8 @@ NEBROLIB.Settings = {
 	IntroText = "NEBROLIB",
 	KeySystem = false,
 	KeyName = "Key System",
-	KeyLink = "https://example.com/key",
+	KeyLink = "",
 	ValidKeys = {"nebro", "pro", "123"},
-	RecheckInterval = 3600,
 	Width = 440,
 	Height = 270,
 	Theme = {
@@ -116,24 +116,24 @@ local function setInteractiveMotion(obj, opts)
 	local scale = attachScale(obj)
 	local normalBg = obj.BackgroundColor3
 	local hoverBg = opts.hoverBg or normalBg
-	local hoverScale = opts.hoverScale or 1.02
-	local downScale = opts.downScale or 0.98
-	local strokeObj = obj:FindFirstChildOfClass("UIStroke")
-	local normalStrokeTransparency = strokeObj and strokeObj.Transparency or nil
+	local hoverScale = opts.hoverScale or 1.015
+	local downScale = opts.downScale or 0.985
+	local stroke = obj:FindFirstChildOfClass("UIStroke")
+	local normalStrokeTransparency = stroke and stroke.Transparency or nil
 
 	obj.MouseEnter:Connect(function()
 		tween(obj, 0.12, {BackgroundColor3 = hoverBg})
 		tween(scale, 0.12, {Scale = hoverScale})
-		if strokeObj and opts.hoverStrokeTransparency ~= nil then
-			tween(strokeObj, 0.12, {Transparency = opts.hoverStrokeTransparency})
+		if stroke and opts.hoverStrokeTransparency ~= nil then
+			tween(stroke, 0.12, {Transparency = opts.hoverStrokeTransparency})
 		end
 	end)
 
 	obj.MouseLeave:Connect(function()
 		tween(obj, 0.12, {BackgroundColor3 = normalBg})
 		tween(scale, 0.12, {Scale = 1})
-		if strokeObj and normalStrokeTransparency ~= nil then
-			tween(strokeObj, 0.12, {Transparency = normalStrokeTransparency})
+		if stroke and normalStrokeTransparency ~= nil then
+			tween(stroke, 0.12, {Transparency = normalStrokeTransparency})
 		end
 	end)
 
@@ -359,7 +359,7 @@ local keyModal = create("Frame", {
 	Visible = false,
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	Position = UDim2.new(0.5, 0, 0.5, 0),
-	Size = UDim2.new(0, 360, 0, 220),
+	Size = UDim2.new(0, 360, 0, 224),
 	BackgroundColor3 = T.Panel,
 	BorderSizePixel = 0,
 	Parent = screenGui
@@ -413,7 +413,7 @@ local keyDesc = create("TextLabel", {
 })
 
 local keyBox = create("TextBox", {
-	Position = UDim2.new(0, 14, 0, 68),
+	Position = UDim2.new(0, 14, 0, 72),
 	Size = UDim2.new(1, -28, 0, 34),
 	BackgroundColor3 = T.BG,
 	Text = "",
@@ -430,7 +430,7 @@ roundify(keyBox, UDim.new(0, 8))
 border(keyBox, 1.2, T.Accent, 0.2)
 
 local confirmBtn = create("TextButton", {
-	Position = UDim2.new(0, 14, 0, 112),
+	Position = UDim2.new(0, 14, 0, 116),
 	Size = UDim2.new(1, -28, 0, 32),
 	BackgroundColor3 = T.Accent,
 	Text = "Confirm",
@@ -445,8 +445,8 @@ border(confirmBtn, 1.0, Color3.fromRGB(255, 255, 255), 0.55)
 setInteractiveMotion(confirmBtn, {hoverBg = Color3.fromRGB(78, 204, 245), hoverStrokeTransparency = 0.35})
 
 local copyLinkBtn = create("TextButton", {
-	Position = UDim2.new(0, 14, 0, 150),
-	Size = UDim2.new(1, -28, 0, 28),
+	Position = UDim2.new(0, 14, 0, 154),
+	Size = UDim2.new(1, -28, 0, 30),
 	BackgroundColor3 = T.Panel2,
 	Text = "Copy Key Link",
 	TextColor3 = T.Text,
@@ -508,7 +508,6 @@ local function notify(text, kind)
 	card.BackgroundTransparency = 1
 	lbl.TextTransparency = 1
 	accent.BackgroundTransparency = 1
-
 	tween(card, 0.18, {BackgroundTransparency = 0})
 	tween(lbl, 0.18, {TextTransparency = 0})
 	tween(accent, 0.18, {BackgroundTransparency = 0})
@@ -524,31 +523,98 @@ local function notify(text, kind)
 	end)
 end
 
-NEBROLIB.Utilities = {}
+NEBROLIB.Notify = notify
+NEBROLIB.screenGui = screenGui
+NEBROLIB.mainFrame = mainFrame
+NEBROLIB.keyModal = keyModal
+NEBROLIB.overlay = overlay
+NEBROLIB.toggleButton = toggleBtn
 
-function NEBROLIB.Utilities.Create(className, props)
-	return create(className, props)
+local tabs = {}
+local selectedTab = nil
+local minimized = false
+local expandedSize = UDim2.new(0, NEBROLIB.Settings.Width, 0, NEBROLIB.Settings.Height)
+local unlocked = not NEBROLIB.Settings.KeySystem
+local authToken = 0
+
+local function showMain()
+	mainFrame.Visible = true
+	mainFrame.Size = UDim2.new(0, 0, 0, 0)
+	pagesContainer.Visible = true
+	tabContainer.Visible = true
+	minBtn.Text = "-"
+	minimized = false
+	tween(mainFrame, 0.24, {Size = expandedSize})
 end
 
-function NEBROLIB.Utilities.Tween(object, timeValue, props, style, direction)
-	local info = TweenInfo.new(timeValue or 0.2, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out)
-	return tween(object, info, props)
+local function hideMain()
+	if not mainFrame.Visible then return end
+	local tw = tween(mainFrame, 0.2, {Size = UDim2.new(0, 0, 0, 0)})
+	tw.Completed:Wait()
+	mainFrame.Visible = false
 end
 
-function NEBROLIB.Utilities.Drag(frame, handle)
-	makeDraggable(frame, handle)
+local function revealToggleButton()
+	if toggleBtn.Visible then return end
+	toggleBtn.Visible = true
+	attachScale(toggleBtn).Scale = 0
+	tween(attachScale(toggleBtn), 0.2, {Scale = 1})
 end
 
-function NEBROLIB.Utilities.Round(object, radius)
-	return roundify(object, radius)
+local function hideToggleButton()
+	if not toggleBtn.Visible then return end
+	tween(attachScale(toggleBtn), 0.14, {Scale = 0})
+	task.delay(0.15, function()
+		if toggleBtn then
+			toggleBtn.Visible = false
+			attachScale(toggleBtn).Scale = 1
+		end
+	end)
 end
 
-function NEBROLIB.Utilities.Border(object, thickness, color, transparency)
-	return border(object, thickness, color, transparency)
+local function closeKeyModal()
+	tween(keyModal, 0.18, {BackgroundTransparency = 1, Size = UDim2.new(0, 320, 0, 208)})
+	tween(overlay, 0.18, {BackgroundTransparency = 1})
+	task.wait(0.18)
+	keyModal.Visible = false
+	overlay.Visible = false
+	keyModal.BackgroundTransparency = 0
+	overlay.BackgroundTransparency = 0.35
 end
 
-function NEBROLIB.Utilities.Notify(text, kind)
-	notify(text, kind)
+local function showKeyModal()
+	overlay.Visible = true
+	overlay.BackgroundTransparency = 1
+	tween(overlay, 0.18, {BackgroundTransparency = 0.35})
+
+	keyModal.Visible = true
+	keyModal.BackgroundTransparency = 0
+	keyModal.Size = UDim2.new(0, 320, 0, 208)
+	tween(keyModal, 0.24, {Size = UDim2.new(0, 360, 0, 224)})
+end
+
+local function deselectAllTabs()
+	for _, t in ipairs(tabs) do
+		t.page.Visible = false
+		t.button.BackgroundColor3 = T.Panel2
+		t.stroke.Transparency = 1
+	end
+end
+
+local function selectTab(entry)
+	deselectAllTabs()
+	entry.page.Visible = true
+	entry.button.BackgroundColor3 = T.Panel
+	entry.stroke.Transparency = 0
+	selectedTab = entry
+end
+
+local function trimArrayLength(options, maxCount)
+	local out = {}
+	for i = 1, math.min(#options, maxCount or #options) do
+		out[#out + 1] = options[i]
+	end
+	return out
 end
 
 function NEBROLIB.makeWindow(titleStr, subtitleStr, authorStr)
@@ -605,54 +671,52 @@ function NEBROLIB.makeIntro(introText)
 	intro(NEBROLIB.Settings.IntroText)
 end
 
-local tabs = {}
-local selectedTab = nil
-local minimized = false
-local expandedSize = UDim2.new(0, NEBROLIB.Settings.Width, 0, NEBROLIB.Settings.Height)
-local libraryUnlocked = not NEBROLIB.Settings.KeySystem
-local recheckRunning = false
-
-local function hideMain()
-	local tw = tween(mainFrame, 0.2, {Size = UDim2.new(0, 0, 0, 0)})
-	tw.Completed:Wait()
-	mainFrame.Visible = false
-end
-
-local function showMain()
-	mainFrame.Visible = true
-	mainFrame.Size = UDim2.new(0, 0, 0, 0)
-	pagesContainer.Visible = true
-	tabContainer.Visible = true
-	minBtn.Text = "-"
-	minimized = false
-	tween(mainFrame, 0.24, {Size = expandedSize})
-end
-
-local function revealToggleButton()
-	if toggleBtn.Visible then return end
-	toggleBtn.Visible = true
-	toggleBtn.Size = UDim2.new(0, 0, 0, 0)
-	tween(toggleBtn, 0.22, {Size = UDim2.new(0, 38, 0, 38)})
-end
-
-local function hideToggleButton()
-	toggleBtn.Visible = false
-end
-
-local function deselectAllTabs()
-	for _, t in ipairs(tabs) do
-		t.page.Visible = false
-		t.button.BackgroundColor3 = T.Panel2
-		t.stroke.Transparency = 1
+local function lockLibrary(reasonText)
+	authToken += 1
+	unlocked = false
+	hideToggleButton()
+	if mainFrame.Visible then
+		hideMain()
+	else
+		mainFrame.Visible = false
 	end
+	if reasonText then
+		notify(reasonText, "warning")
+	end
+	showKeyModal()
 end
 
-local function selectTab(entry)
-	deselectAllTabs()
-	entry.page.Visible = true
-	entry.button.BackgroundColor3 = T.Panel
-	entry.stroke.Transparency = 0
-	selectedTab = entry
+local function scheduleRelock(sessionId)
+	task.delay(3600, function()
+		if authToken ~= sessionId then
+			return
+		end
+		if not unlocked then
+			return
+		end
+		lockLibrary("Session expired, enter the key again.")
+	end)
+end
+
+local function unlockLibrary()
+	closeKeyModal()
+	unlocked = true
+	revealToggleButton()
+	showMain()
+	notify("Key accepted", "success")
+	authToken += 1
+	local currentSession = authToken
+	scheduleRelock(currentSession)
+end
+
+local function validateKey(k)
+	local key = trimLower(k)
+	for _, v in ipairs(NEBROLIB.Settings.ValidKeys or {}) do
+		if key == trimLower(v) then
+			return true
+		end
+	end
+	return false
 end
 
 function NEBROLIB.createTab(name, iconText)
@@ -891,6 +955,7 @@ function NEBROLIB.createDropdown(parent, options, defaultIndex, callback)
 	})
 
 	local open = false
+
 	for _, opt in ipairs(options) do
 		local item = create("TextButton", {
 			Size = UDim2.new(1, 0, 0, 26),
@@ -905,6 +970,7 @@ function NEBROLIB.createDropdown(parent, options, defaultIndex, callback)
 		roundify(item, UDim.new(0, 6))
 		border(item, 1, T.Accent, 0.45)
 		setInteractiveMotion(item, {hoverBg = Color3.fromRGB(28, 36, 48), hoverStrokeTransparency = 0.2})
+
 		item.MouseButton1Click:Connect(function()
 			mainBtn.Text = tostring(opt)
 			open = false
@@ -914,6 +980,7 @@ function NEBROLIB.createDropdown(parent, options, defaultIndex, callback)
 	end
 
 	listFrame.Size = UDim2.new(1, 0, 0, math.clamp(#options * 30 + 10, 34, 160))
+
 	mainBtn.MouseButton1Click:Connect(function()
 		open = not open
 		listFrame.Visible = open
@@ -1051,6 +1118,7 @@ function NEBROLIB.createSlider(parent, labelText, min, max, defaultValue, callba
 	border(knob, 1, Color3.fromRGB(255, 255, 255), 0.55)
 
 	local dragging = false
+
 	local function setValue(v, fire)
 		v = math.clamp(math.floor(v + 0.5), min, max)
 		local percent = (v - min) / math.max(1, (max - min))
@@ -1113,88 +1181,24 @@ function NEBROLIB.hide()
 	hideMain()
 end
 
-local function showKeyModal()
-	overlay.Visible = true
-	overlay.BackgroundTransparency = 1
-	tween(overlay, 0.18, {BackgroundTransparency = 0.35})
-
-	keyModal.Visible = true
-	keyModal.BackgroundTransparency = 0
-	keyModal.Size = UDim2.new(0, 320, 0, 212)
-	tween(keyModal, 0.24, {Size = UDim2.new(0, 360, 0, 220)})
-end
-
-local function closeKeyModal()
-	tween(keyModal, 0.18, {BackgroundTransparency = 1, Size = UDim2.new(0, 320, 0, 212)})
-	tween(overlay, 0.18, {BackgroundTransparency = 1})
-	task.wait(0.18)
-	keyModal.Visible = false
-	overlay.Visible = false
-	keyModal.BackgroundTransparency = 0
-	overlay.BackgroundTransparency = 0.35
-end
-
-local function validateKey(k)
-	local key = trimLower(k)
-	for _, v in ipairs(NEBROLIB.Settings.ValidKeys or {}) do
-		if key == trimLower(v) then
-			return true
-		end
-	end
-	return false
-end
-
-local function startRecheckTimer()
-	if recheckRunning then return end
-	recheckRunning = true
-
-	task.spawn(function()
-		while libraryUnlocked and NEBROLIB.Settings.KeySystem do
-			task.wait(tonumber(NEBROLIB.Settings.RecheckInterval) or 3600)
-			if not libraryUnlocked then
-				break
-			end
-
-			libraryUnlocked = false
-			hideMain()
-			hideToggleButton()
-			keyBox.Text = ""
-			showKeyModal()
-			notify("Key verification required again", "warning")
-			break
-		end
-		recheckRunning = false
-	end)
-end
-
-local function unlockLibrary()
-	closeKeyModal()
-	revealToggleButton()
-	showMain()
-	libraryUnlocked = true
-	notify("Key accepted", "success")
-	startRecheckTimer()
-end
-
-keyClose.MouseButton1Click:Connect(function()
-	closeKeyModal()
-end)
-
 copyLinkBtn.MouseButton1Click:Connect(function()
 	local link = tostring(NEBROLIB.Settings.KeyLink or "")
-	local success = false
-
-	if typeof(setclipboard) == "function" then
-		local ok = pcall(function()
-			setclipboard(link)
-		end)
-		success = ok
+	if link == "" then
+		notify("Key link is not set", "error")
+		return
 	end
 
-	if success then
+	local ok = false
+	if typeof(setclipboard) == "function" then
+		ok = pcall(setclipboard, link)
+	elseif typeof(toclipboard) == "function" then
+		ok = pcall(toclipboard, link)
+	end
+
+	if ok then
 		notify("Key link copied", "success")
 	else
-		notify("Clipboard unavailable", "warning")
+		notify("Copy is not available here", "warning")
 	end
 end)
 
@@ -1211,6 +1215,10 @@ confirmBtn.MouseButton1Click:Connect(function()
 			end
 		end)
 	end
+end)
+
+keyClose.MouseButton1Click:Connect(function()
+	closeKeyModal()
 end)
 
 closeBtn.MouseButton1Click:Connect(function()
@@ -1273,12 +1281,18 @@ function NEBROLIB.Init(config)
 	end)
 end
 
-NEBROLIB.Notify = notify
-NEBROLIB.screenGui = screenGui
-NEBROLIB.mainFrame = mainFrame
-NEBROLIB.keyModal = keyModal
-NEBROLIB.overlay = overlay
-NEBROLIB.toggleButton = toggleBtn
-NEBROLIB.tabs = tabs
+NEBROLIB.makeWindow = NEBROLIB.makeWindow
+NEBROLIB.makeIntro = NEBROLIB.makeIntro
+NEBROLIB.createTab = NEBROLIB.createTab
+NEBROLIB.createSection = NEBROLIB.createSection
+NEBROLIB.createTextLabel = NEBROLIB.createTextLabel
+NEBROLIB.createParagraph = NEBROLIB.createParagraph
+NEBROLIB.createButton = NEBROLIB.createButton
+NEBROLIB.createTextBox = NEBROLIB.createTextBox
+NEBROLIB.createDropdown = NEBROLIB.createDropdown
+NEBROLIB.createToggle = NEBROLIB.createToggle
+NEBROLIB.createSlider = NEBROLIB.createSlider
+NEBROLIB.createLabel = NEBROLIB.createLabel
+NEBROLIB.createNotification = NEBROLIB.createNotification
 
-return NEBROLIB
+return NEBROLIB 
