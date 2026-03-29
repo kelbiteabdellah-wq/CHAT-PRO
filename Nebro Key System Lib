@@ -1,11 +1,10 @@
 -- NEBROLIB ADVANCED UI LIBRARY
--- Compact Redz-style layout, Cyan theme, Utilities, Key System, ScrollingFrames
+-- Compact Redz-style layout, Cyan theme, Utilities, Key System, Copy Key Link, Recheck every 1 hour
 -- Made by: NEBROLIB
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local gui = player:WaitForChild("PlayerGui")
@@ -23,7 +22,9 @@ NEBROLIB.Settings = {
 	IntroText = "NEBROLIB",
 	KeySystem = false,
 	KeyName = "Key System",
+	KeyLink = "https://example.com/key",
 	ValidKeys = {"nebro", "pro", "123"},
+	RecheckInterval = 3600,
 	Width = 440,
 	Height = 270,
 	Theme = {
@@ -115,29 +116,24 @@ local function setInteractiveMotion(obj, opts)
 	local scale = attachScale(obj)
 	local normalBg = obj.BackgroundColor3
 	local hoverBg = opts.hoverBg or normalBg
-	local downScale = opts.downScale or 0.98
 	local hoverScale = opts.hoverScale or 1.02
-	local normalStrokeTransparency = nil
-	local s = obj:FindFirstChildOfClass("UIStroke")
-	if s then
-		normalStrokeTransparency = s.Transparency
-	end
+	local downScale = opts.downScale or 0.98
+	local strokeObj = obj:FindFirstChildOfClass("UIStroke")
+	local normalStrokeTransparency = strokeObj and strokeObj.Transparency or nil
 
 	obj.MouseEnter:Connect(function()
-		if hoverBg then
-			tween(obj, 0.12, {BackgroundColor3 = hoverBg})
-		end
+		tween(obj, 0.12, {BackgroundColor3 = hoverBg})
 		tween(scale, 0.12, {Scale = hoverScale})
-		if s and opts.hoverStrokeTransparency ~= nil then
-			tween(s, 0.12, {Transparency = opts.hoverStrokeTransparency})
+		if strokeObj and opts.hoverStrokeTransparency ~= nil then
+			tween(strokeObj, 0.12, {Transparency = opts.hoverStrokeTransparency})
 		end
 	end)
 
 	obj.MouseLeave:Connect(function()
 		tween(obj, 0.12, {BackgroundColor3 = normalBg})
 		tween(scale, 0.12, {Scale = 1})
-		if s and normalStrokeTransparency ~= nil then
-			tween(s, 0.12, {Transparency = normalStrokeTransparency})
+		if strokeObj and normalStrokeTransparency ~= nil then
+			tween(strokeObj, 0.12, {Transparency = normalStrokeTransparency})
 		end
 	end)
 
@@ -363,7 +359,7 @@ local keyModal = create("Frame", {
 	Visible = false,
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	Position = UDim2.new(0.5, 0, 0.5, 0),
-	Size = UDim2.new(0, 360, 0, 190),
+	Size = UDim2.new(0, 360, 0, 220),
 	BackgroundColor3 = T.Panel,
 	BorderSizePixel = 0,
 	Parent = screenGui
@@ -417,7 +413,7 @@ local keyDesc = create("TextLabel", {
 })
 
 local keyBox = create("TextBox", {
-	Position = UDim2.new(0, 14, 0, 72),
+	Position = UDim2.new(0, 14, 0, 68),
 	Size = UDim2.new(1, -28, 0, 34),
 	BackgroundColor3 = T.BG,
 	Text = "",
@@ -434,7 +430,7 @@ roundify(keyBox, UDim.new(0, 8))
 border(keyBox, 1.2, T.Accent, 0.2)
 
 local confirmBtn = create("TextButton", {
-	Position = UDim2.new(0, 14, 1, -46),
+	Position = UDim2.new(0, 14, 0, 112),
 	Size = UDim2.new(1, -28, 0, 32),
 	BackgroundColor3 = T.Accent,
 	Text = "Confirm",
@@ -447,6 +443,21 @@ local confirmBtn = create("TextButton", {
 roundify(confirmBtn, UDim.new(0, 8))
 border(confirmBtn, 1.0, Color3.fromRGB(255, 255, 255), 0.55)
 setInteractiveMotion(confirmBtn, {hoverBg = Color3.fromRGB(78, 204, 245), hoverStrokeTransparency = 0.35})
+
+local copyLinkBtn = create("TextButton", {
+	Position = UDim2.new(0, 14, 0, 150),
+	Size = UDim2.new(1, -28, 0, 28),
+	BackgroundColor3 = T.Panel2,
+	Text = "Copy Key Link",
+	TextColor3 = T.Text,
+	Font = Enum.Font.GothamBold,
+	TextSize = 14,
+	BorderSizePixel = 0,
+	Parent = keyModal
+})
+roundify(copyLinkBtn, UDim.new(0, 8))
+border(copyLinkBtn, 1.1, T.Accent, 0.18)
+setInteractiveMotion(copyLinkBtn, {hoverBg = Color3.fromRGB(26, 34, 46), hoverStrokeTransparency = 0.08})
 
 local notifIndex = 0
 local function notify(text, kind)
@@ -598,7 +609,14 @@ local tabs = {}
 local selectedTab = nil
 local minimized = false
 local expandedSize = UDim2.new(0, NEBROLIB.Settings.Width, 0, NEBROLIB.Settings.Height)
-local unlocked = not NEBROLIB.Settings.KeySystem
+local libraryUnlocked = not NEBROLIB.Settings.KeySystem
+local recheckRunning = false
+
+local function hideMain()
+	local tw = tween(mainFrame, 0.2, {Size = UDim2.new(0, 0, 0, 0)})
+	tw.Completed:Wait()
+	mainFrame.Visible = false
+end
 
 local function showMain()
 	mainFrame.Visible = true
@@ -610,17 +628,15 @@ local function showMain()
 	tween(mainFrame, 0.24, {Size = expandedSize})
 end
 
-local function hideMain()
-	local tw = tween(mainFrame, 0.2, {Size = UDim2.new(0, 0, 0, 0)})
-	tw.Completed:Wait()
-	mainFrame.Visible = false
-end
-
 local function revealToggleButton()
 	if toggleBtn.Visible then return end
 	toggleBtn.Visible = true
 	toggleBtn.Size = UDim2.new(0, 0, 0, 0)
 	tween(toggleBtn, 0.22, {Size = UDim2.new(0, 38, 0, 38)})
+end
+
+local function hideToggleButton()
+	toggleBtn.Visible = false
 end
 
 local function deselectAllTabs()
@@ -712,7 +728,6 @@ function NEBROLIB.createTab(name, iconText)
 	end
 
 	setInteractiveMotion(tabBtn, {hoverBg = Color3.fromRGB(26, 34, 46), hoverStrokeTransparency = 0.08})
-
 	return page
 end
 
@@ -876,7 +891,6 @@ function NEBROLIB.createDropdown(parent, options, defaultIndex, callback)
 	})
 
 	local open = false
-
 	for _, opt in ipairs(options) do
 		local item = create("TextButton", {
 			Size = UDim2.new(1, 0, 0, 26),
@@ -891,7 +905,6 @@ function NEBROLIB.createDropdown(parent, options, defaultIndex, callback)
 		roundify(item, UDim.new(0, 6))
 		border(item, 1, T.Accent, 0.45)
 		setInteractiveMotion(item, {hoverBg = Color3.fromRGB(28, 36, 48), hoverStrokeTransparency = 0.2})
-
 		item.MouseButton1Click:Connect(function()
 			mainBtn.Text = tostring(opt)
 			open = false
@@ -900,9 +913,7 @@ function NEBROLIB.createDropdown(parent, options, defaultIndex, callback)
 		end)
 	end
 
-	local count = #options
-	listFrame.Size = UDim2.new(1, 0, 0, math.clamp(count * 30 + 10, 34, 160))
-
+	listFrame.Size = UDim2.new(1, 0, 0, math.clamp(#options * 30 + 10, 34, 160))
 	mainBtn.MouseButton1Click:Connect(function()
 		open = not open
 		listFrame.Visible = open
@@ -1040,7 +1051,6 @@ function NEBROLIB.createSlider(parent, labelText, min, max, defaultValue, callba
 	border(knob, 1, Color3.fromRGB(255, 255, 255), 0.55)
 
 	local dragging = false
-
 	local function setValue(v, fire)
 		v = math.clamp(math.floor(v + 0.5), min, max)
 		local percent = (v - min) / math.max(1, (max - min))
@@ -1110,12 +1120,12 @@ local function showKeyModal()
 
 	keyModal.Visible = true
 	keyModal.BackgroundTransparency = 0
-	keyModal.Size = UDim2.new(0, 320, 0, 172)
-	tween(keyModal, 0.24, {Size = UDim2.new(0, 360, 0, 190)})
+	keyModal.Size = UDim2.new(0, 320, 0, 212)
+	tween(keyModal, 0.24, {Size = UDim2.new(0, 360, 0, 220)})
 end
 
 local function closeKeyModal()
-	tween(keyModal, 0.18, {BackgroundTransparency = 1, Size = UDim2.new(0, 320, 0, 172)})
+	tween(keyModal, 0.18, {BackgroundTransparency = 1, Size = UDim2.new(0, 320, 0, 212)})
 	tween(overlay, 0.18, {BackgroundTransparency = 1})
 	task.wait(0.18)
 	keyModal.Visible = false
@@ -1134,21 +1144,63 @@ local function validateKey(k)
 	return false
 end
 
+local function startRecheckTimer()
+	if recheckRunning then return end
+	recheckRunning = true
+
+	task.spawn(function()
+		while libraryUnlocked and NEBROLIB.Settings.KeySystem do
+			task.wait(tonumber(NEBROLIB.Settings.RecheckInterval) or 3600)
+			if not libraryUnlocked then
+				break
+			end
+
+			libraryUnlocked = false
+			hideMain()
+			hideToggleButton()
+			keyBox.Text = ""
+			showKeyModal()
+			notify("Key verification required again", "warning")
+			break
+		end
+		recheckRunning = false
+	end)
+end
+
 local function unlockLibrary()
 	closeKeyModal()
 	revealToggleButton()
 	showMain()
+	libraryUnlocked = true
 	notify("Key accepted", "success")
+	startRecheckTimer()
 end
 
 keyClose.MouseButton1Click:Connect(function()
 	closeKeyModal()
 end)
 
+copyLinkBtn.MouseButton1Click:Connect(function()
+	local link = tostring(NEBROLIB.Settings.KeyLink or "")
+	local success = false
+
+	if typeof(setclipboard) == "function" then
+		local ok = pcall(function()
+			setclipboard(link)
+		end)
+		success = ok
+	end
+
+	if success then
+		notify("Key link copied", "success")
+	else
+		notify("Clipboard unavailable", "warning")
+	end
+end)
+
 confirmBtn.MouseButton1Click:Connect(function()
 	local entered = keyBox.Text or ""
 	if validateKey(entered) then
-		unlocked = true
 		unlockLibrary()
 	else
 		notify("Invalid key", "error")
@@ -1201,6 +1253,7 @@ function NEBROLIB.Init(config)
 	config = config or {}
 	mergeTable(NEBROLIB.Settings, config)
 	mergeTable(T, NEBROLIB.Settings.Theme)
+
 	title.Text = NEBROLIB.Settings.Title
 	title2.Text = NEBROLIB.Settings.SubTitle
 	subtitle.Text = NEBROLIB.Settings.Author
@@ -1210,9 +1263,8 @@ function NEBROLIB.Init(config)
 
 	task.spawn(function()
 		intro(NEBROLIB.Settings.IntroText)
-
 		if NEBROLIB.Settings.KeySystem then
-			toggleBtn.Visible = false
+			hideToggleButton()
 			showKeyModal()
 		else
 			revealToggleButton()
