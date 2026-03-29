@@ -1,9 +1,11 @@
--- NEBROLIB | Compact Cyan UI Library
--- Key System + Utilities + Small Redz-like Tabs/Buttons + Smooth Animations + Scrolling Pages
+-- NEBROLIB ADVANCED UI LIBRARY
+-- Compact Redz-style layout, Cyan theme, Utilities, Key System, ScrollingFrames
+-- Made by: NEBROLIB
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local gui = player:WaitForChild("PlayerGui")
@@ -22,12 +24,12 @@ NEBROLIB.Settings = {
 	KeySystem = false,
 	KeyName = "Key System",
 	ValidKeys = {"nebro", "pro", "123"},
-	Width = 430,
-	Height = 258,
+	Width = 440,
+	Height = 270,
 	Theme = {
 		Accent = Color3.fromRGB(92, 220, 255),
-		BG = Color3.fromRGB(10, 14, 20),
-		Panel = Color3.fromRGB(15, 20, 28),
+		BG = Color3.fromRGB(11, 15, 20),
+		Panel = Color3.fromRGB(16, 21, 29),
 		Panel2 = Color3.fromRGB(20, 26, 36),
 		Text = Color3.fromRGB(255, 255, 255),
 		Muted = Color3.fromRGB(170, 180, 190),
@@ -39,11 +41,11 @@ NEBROLIB.Settings = {
 
 local T = NEBROLIB.Settings.Theme
 
-local function merge(a, b)
+local function mergeTable(a, b)
 	if type(b) ~= "table" then return a end
 	for k, v in pairs(b) do
 		if type(v) == "table" and type(a[k]) == "table" then
-			merge(a[k], v)
+			mergeTable(a[k], v)
 		else
 			a[k] = v
 		end
@@ -52,41 +54,42 @@ local function merge(a, b)
 end
 
 local function create(className, props)
-	local obj = Instance.new(className)
+	local inst = Instance.new(className)
 	for k, v in pairs(props or {}) do
-		obj[k] = v
+		inst[k] = v
 	end
-	return obj
+	return inst
 end
 
-local function round(obj, radius)
+local function roundify(parent, radius)
 	local c = Instance.new("UICorner")
 	c.CornerRadius = radius or UDim.new(0, 8)
-	c.Parent = obj
+	c.Parent = parent
 	return c
 end
 
-local function stroke(obj, thickness, color, transparency)
+local function border(parent, thickness, color, transparency)
 	local s = Instance.new("UIStroke")
 	s.Thickness = thickness or 1.2
 	s.Color = color or T.Accent
 	s.Transparency = transparency or 0.15
-	s.Parent = obj
+	s.Parent = parent
 	return s
 end
 
-local function padding(obj, l, t, r, b)
+local function pad(parent, l, t, r, b)
 	local p = Instance.new("UIPadding")
 	p.PaddingLeft = UDim.new(0, l or 0)
 	p.PaddingTop = UDim.new(0, t or 0)
 	p.PaddingRight = UDim.new(0, r or 0)
 	p.PaddingBottom = UDim.new(0, b or 0)
-	p.Parent = obj
+	p.Parent = parent
 	return p
 end
 
-local function tween(obj, ti, props)
-	local tw = TweenService:Create(obj, ti or TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props)
+local function tween(obj, timeOrInfo, props)
+	local info = typeof(timeOrInfo) == "TweenInfo" and timeOrInfo or TweenInfo.new(timeOrInfo or 0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	local tw = TweenService:Create(obj, info, props)
 	tw:Play()
 	return tw
 end
@@ -95,6 +98,56 @@ local function trimLower(s)
 	s = tostring(s or "")
 	s = s:gsub("^%s+", ""):gsub("%s+$", "")
 	return string.lower(s)
+end
+
+local function attachScale(obj)
+	local scale = obj:FindFirstChildOfClass("UIScale")
+	if not scale then
+		scale = Instance.new("UIScale")
+		scale.Scale = 1
+		scale.Parent = obj
+	end
+	return scale
+end
+
+local function setInteractiveMotion(obj, opts)
+	opts = opts or {}
+	local scale = attachScale(obj)
+	local normalBg = obj.BackgroundColor3
+	local hoverBg = opts.hoverBg or normalBg
+	local downScale = opts.downScale or 0.98
+	local hoverScale = opts.hoverScale or 1.02
+	local normalStrokeTransparency = nil
+	local s = obj:FindFirstChildOfClass("UIStroke")
+	if s then
+		normalStrokeTransparency = s.Transparency
+	end
+
+	obj.MouseEnter:Connect(function()
+		if hoverBg then
+			tween(obj, 0.12, {BackgroundColor3 = hoverBg})
+		end
+		tween(scale, 0.12, {Scale = hoverScale})
+		if s and opts.hoverStrokeTransparency ~= nil then
+			tween(s, 0.12, {Transparency = opts.hoverStrokeTransparency})
+		end
+	end)
+
+	obj.MouseLeave:Connect(function()
+		tween(obj, 0.12, {BackgroundColor3 = normalBg})
+		tween(scale, 0.12, {Scale = 1})
+		if s and normalStrokeTransparency ~= nil then
+			tween(s, 0.12, {Transparency = normalStrokeTransparency})
+		end
+	end)
+
+	obj.MouseButton1Down:Connect(function()
+		tween(scale, 0.06, {Scale = downScale})
+	end)
+
+	obj.MouseButton1Up:Connect(function()
+		tween(scale, 0.08, {Scale = hoverScale})
+	end)
 end
 
 local function makeDraggable(frame, handle)
@@ -132,32 +185,6 @@ local function makeDraggable(frame, handle)
 	end)
 end
 
-local function hoverButton(btn, normalBg, hoverBg, normalStrokeTransparency, hoverStrokeTransparency)
-	btn.MouseEnter:Connect(function()
-		tween(btn, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			BackgroundColor3 = hoverBg or normalBg
-		})
-		local s = btn:FindFirstChildOfClass("UIStroke")
-		if s then
-			tween(s, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-				Transparency = hoverStrokeTransparency or 0.1
-			})
-		end
-	end)
-
-	btn.MouseLeave:Connect(function()
-		tween(btn, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			BackgroundColor3 = normalBg
-		})
-		local s = btn:FindFirstChildOfClass("UIStroke")
-		if s then
-			tween(s, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-				Transparency = normalStrokeTransparency or 0.15
-			})
-		end
-	end)
-end
-
 local screenGui = create("ScreenGui", {
 	Name = "NEBROLIBUI",
 	ResetOnSpawn = false,
@@ -175,11 +202,11 @@ local mainFrame = create("Frame", {
 	Visible = false,
 	Parent = screenGui
 })
-round(mainFrame, UDim.new(0, 10))
-stroke(mainFrame, 2, T.Accent, 0.08)
-local mainScale = create("UIScale", {Scale = 0.96, Parent = mainFrame})
+roundify(mainFrame, UDim.new(0, 10))
+border(mainFrame, 2, T.Accent, 0.08)
 
 local topBar = create("Frame", {
+	Name = "TopBar",
 	BackgroundTransparency = 1,
 	Size = UDim2.new(1, 0, 0, 40),
 	Parent = mainFrame
@@ -188,24 +215,24 @@ local topBar = create("Frame", {
 local title = create("TextLabel", {
 	BackgroundTransparency = 1,
 	Position = UDim2.new(0, 14, 0, 1),
-	Size = UDim2.new(0, 180, 0, 20),
-	Text = NEBROLIB.Settings.Title,
-	TextColor3 = T.Accent,
+	Size = UDim2.new(0, 190, 0, 20),
 	Font = Enum.Font.GothamBlack,
 	TextSize = 18,
+	TextColor3 = T.Accent,
 	TextXAlignment = Enum.TextXAlignment.Left,
+	Text = NEBROLIB.Settings.Title,
 	Parent = topBar
 })
 
 local title2 = create("TextLabel", {
 	BackgroundTransparency = 1,
-	Position = UDim2.new(0, 108, 0, 1),
-	Size = UDim2.new(0, 130, 0, 20),
-	Text = NEBROLIB.Settings.SubTitle,
-	TextColor3 = T.Accent,
+	Position = UDim2.new(0, 104, 0, 1),
+	Size = UDim2.new(0, 150, 0, 20),
 	Font = Enum.Font.GothamBlack,
 	TextSize = 16,
+	TextColor3 = T.Accent,
 	TextXAlignment = Enum.TextXAlignment.Left,
+	Text = NEBROLIB.Settings.SubTitle,
 	Parent = topBar
 })
 
@@ -213,47 +240,46 @@ local subtitle = create("TextLabel", {
 	BackgroundTransparency = 1,
 	Position = UDim2.new(0, 14, 0, 18),
 	Size = UDim2.new(1, -120, 0, 16),
-	Text = NEBROLIB.Settings.Author,
-	TextColor3 = T.Muted,
 	Font = Enum.Font.Gotham,
 	TextSize = 12,
+	TextColor3 = T.Muted,
 	TextXAlignment = Enum.TextXAlignment.Left,
+	Text = NEBROLIB.Settings.Author,
 	Parent = topBar
 })
 
 local closeBtn = create("TextButton", {
-	Size = UDim2.new(0, 24, 0, 24),
-	Position = UDim2.new(1, -32, 0, 8),
+	Size = UDim2.new(0, 26, 0, 26),
+	Position = UDim2.new(1, -34, 0, 7),
 	BackgroundColor3 = T.Panel2,
 	Text = "X",
 	TextColor3 = T.Accent,
 	Font = Enum.Font.GothamBlack,
-	TextSize = 13,
+	TextSize = 14,
 	BorderSizePixel = 0,
 	Parent = topBar
 })
-round(closeBtn, UDim.new(0, 7))
-stroke(closeBtn, 1.1, T.Accent, 0.18)
-hoverButton(closeBtn, T.Panel2, Color3.fromRGB(26, 34, 46), 0.18, 0.08)
+roundify(closeBtn, UDim.new(0, 7))
+border(closeBtn, 1.2, T.Accent, 0.18)
+setInteractiveMotion(closeBtn, {hoverBg = Color3.fromRGB(26, 34, 46), hoverStrokeTransparency = 0.08})
 
 local minBtn = create("TextButton", {
-	Size = UDim2.new(0, 24, 0, 24),
-	Position = UDim2.new(1, -60, 0, 8),
+	Size = UDim2.new(0, 26, 0, 26),
+	Position = UDim2.new(1, -64, 0, 7),
 	BackgroundColor3 = T.Panel2,
 	Text = "-",
 	TextColor3 = T.Accent,
 	Font = Enum.Font.GothamBlack,
-	TextSize = 15,
+	TextSize = 16,
 	BorderSizePixel = 0,
 	Parent = topBar
 })
-round(minBtn, UDim.new(0, 7))
-stroke(minBtn, 1.1, T.Accent, 0.18)
-hoverButton(minBtn, T.Panel2, Color3.fromRGB(26, 34, 46), 0.18, 0.08)
+roundify(minBtn, UDim.new(0, 7))
+border(minBtn, 1.2, T.Accent, 0.18)
+setInteractiveMotion(minBtn, {hoverBg = Color3.fromRGB(26, 34, 46), hoverStrokeTransparency = 0.08})
 
 local toggleBtn = create("TextButton", {
 	Name = "ToggleButton",
-	Visible = false,
 	Size = UDim2.new(0, 38, 0, 38),
 	Position = UDim2.new(0, 10, 0.5, -19),
 	BackgroundColor3 = T.Panel2,
@@ -262,15 +288,17 @@ local toggleBtn = create("TextButton", {
 	Font = Enum.Font.GothamBlack,
 	TextSize = 13,
 	BorderSizePixel = 0,
+	Active = true,
+	Visible = false,
 	Parent = screenGui
 })
-round(toggleBtn, UDim.new(0, 8))
-stroke(toggleBtn, 1.1, T.Accent, 0.18)
-hoverButton(toggleBtn, T.Panel2, Color3.fromRGB(26, 34, 46), 0.18, 0.08)
+roundify(toggleBtn, UDim.new(0, 8))
+border(toggleBtn, 1.2, T.Accent, 0.18)
+setInteractiveMotion(toggleBtn, {hoverBg = Color3.fromRGB(26, 34, 46), hoverStrokeTransparency = 0.08})
 
 local tabContainer = create("ScrollingFrame", {
 	Name = "TabContainer",
-	Size = UDim2.new(0, 96, 1, -42),
+	Size = UDim2.new(0, 104, 1, -44),
 	Position = UDim2.new(0, 0, 0, 40),
 	BackgroundColor3 = T.Panel,
 	BorderSizePixel = 0,
@@ -280,138 +308,31 @@ local tabContainer = create("ScrollingFrame", {
 	VerticalScrollBarInset = Enum.ScrollBarInset.Always,
 	Parent = mainFrame
 })
-padding(tabContainer, 6, 6, 6, 6)
+pad(tabContainer, 6, 6, 6, 6)
 create("UIListLayout", {
 	Padding = UDim.new(0, 6),
 	SortOrder = Enum.SortOrder.LayoutOrder,
 	Parent = tabContainer
 })
 
-local pagesContainer = create("Frame", {
+local pagesContainer = create("ScrollingFrame", {
 	Name = "PagesContainer",
-	BackgroundTransparency = 1,
-	Size = UDim2.new(1, -104, 1, -48),
-	Position = UDim2.new(0, 100, 0, 42),
-	Parent = mainFrame
-})
-
-local pagesClip = create("ScrollingFrame", {
-	Name = "PagesScroll",
+	Size = UDim2.new(1, -114, 1, -50),
+	Position = UDim2.new(0, 110, 0, 44),
 	BackgroundTransparency = 1,
 	BorderSizePixel = 0,
-	Size = UDim2.new(1, 0, 1, 0),
 	ScrollBarThickness = 7,
 	AutomaticCanvasSize = Enum.AutomaticSize.Y,
 	CanvasSize = UDim2.new(0, 0, 0, 0),
 	VerticalScrollBarInset = Enum.ScrollBarInset.Always,
-	Parent = pagesContainer
+	ScrollingDirection = Enum.ScrollingDirection.Y,
+	Parent = mainFrame
 })
-padding(pagesClip, 0, 0, 0, 0)
 create("UIListLayout", {
 	Padding = UDim.new(0, 10),
 	SortOrder = Enum.SortOrder.LayoutOrder,
-	Parent = pagesClip
+	Parent = pagesContainer
 })
-
-local overlay = create("Frame", {
-	Name = "Overlay",
-	Visible = false,
-	BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-	BackgroundTransparency = 1,
-	Size = UDim2.new(1, 0, 1, 0),
-	BorderSizePixel = 0,
-	Parent = screenGui
-})
-
-local keyModal = create("Frame", {
-	Name = "KeyModal",
-	Visible = false,
-	AnchorPoint = Vector2.new(0.5, 0.5),
-	Position = UDim2.new(0.5, 0, 0.5, 0),
-	Size = UDim2.new(0, 320, 0, 172),
-	BackgroundColor3 = T.Panel,
-	BorderSizePixel = 0,
-	Parent = screenGui
-})
-round(keyModal, UDim.new(0, 10))
-stroke(keyModal, 2, T.Accent, 0.08)
-local keyScale = create("UIScale", {Scale = 0.96, Parent = keyModal})
-
-local keyHeader = create("Frame", {
-	BackgroundTransparency = 1,
-	Size = UDim2.new(1, 0, 0, 38),
-	Parent = keyModal
-})
-
-local keyTitle = create("TextLabel", {
-	BackgroundTransparency = 1,
-	Position = UDim2.new(0, 14, 0, 8),
-	Size = UDim2.new(1, -50, 0, 20),
-	Text = NEBROLIB.Settings.KeyName,
-	TextColor3 = T.Text,
-	Font = Enum.Font.GothamBlack,
-	TextSize = 18,
-	TextXAlignment = Enum.TextXAlignment.Left,
-	Parent = keyHeader
-})
-
-local keyClose = create("TextButton", {
-	Size = UDim2.new(0, 22, 0, 22),
-	Position = UDim2.new(1, -28, 0, 8),
-	BackgroundColor3 = T.Panel2,
-	Text = "X",
-	TextColor3 = T.Accent,
-	Font = Enum.Font.GothamBlack,
-	TextSize = 12,
-	BorderSizePixel = 0,
-	Parent = keyHeader
-})
-round(keyClose, UDim.new(0, 7))
-stroke(keyClose, 1.1, T.Accent, 0.18)
-hoverButton(keyClose, T.Panel2, Color3.fromRGB(26, 34, 46), 0.18, 0.08)
-
-local keyDesc = create("TextLabel", {
-	BackgroundTransparency = 1,
-	Position = UDim2.new(0, 14, 0, 36),
-	Size = UDim2.new(1, -28, 0, 16),
-	Text = "Enter the key to unlock NEBROLIB",
-	TextColor3 = T.Muted,
-	Font = Enum.Font.Gotham,
-	TextSize = 12,
-	TextXAlignment = Enum.TextXAlignment.Left,
-	Parent = keyModal
-})
-
-local keyBox = create("TextBox", {
-	Position = UDim2.new(0, 14, 0, 64),
-	Size = UDim2.new(1, -28, 0, 30),
-	BackgroundColor3 = T.BG,
-	Text = "",
-	PlaceholderText = "Enter key...",
-	TextColor3 = T.Text,
-	PlaceholderColor3 = T.Muted,
-	ClearTextOnFocus = false,
-	Font = Enum.Font.Gotham,
-	TextSize = 14,
-	BorderSizePixel = 0,
-	Parent = keyModal
-})
-round(keyBox, UDim.new(0, 8))
-stroke(keyBox, 1.1, T.Accent, 0.2)
-
-local confirmBtn = create("TextButton", {
-	Position = UDim2.new(0, 14, 1, -40),
-	Size = UDim2.new(1, -28, 0, 28),
-	BackgroundColor3 = T.Accent,
-	Text = "Confirm",
-	TextColor3 = Color3.fromRGB(0, 0, 0),
-	Font = Enum.Font.GothamBold,
-	TextSize = 14,
-	BorderSizePixel = 0,
-	Parent = keyModal
-})
-round(confirmBtn, UDim.new(0, 8))
-stroke(confirmBtn, 1.0, Color3.fromRGB(255, 255, 255), 0.55)
 
 local notifHolder = create("Frame", {
 	Name = "Notifications",
@@ -427,60 +348,165 @@ create("UIListLayout", {
 	Parent = notifHolder
 })
 
-local notifOrder = 0
+local overlay = create("Frame", {
+	Name = "KeyOverlay",
+	Visible = false,
+	BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+	BackgroundTransparency = 0.35,
+	Size = UDim2.new(1, 0, 1, 0),
+	BorderSizePixel = 0,
+	Parent = screenGui
+})
+
+local keyModal = create("Frame", {
+	Name = "KeySystem",
+	Visible = false,
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.new(0.5, 0, 0.5, 0),
+	Size = UDim2.new(0, 360, 0, 190),
+	BackgroundColor3 = T.Panel,
+	BorderSizePixel = 0,
+	Parent = screenGui
+})
+roundify(keyModal, UDim.new(0, 10))
+border(keyModal, 2, T.Accent, 0.08)
+
+local keyHeader = create("Frame", {
+	BackgroundTransparency = 1,
+	Size = UDim2.new(1, 0, 0, 40),
+	Parent = keyModal
+})
+
+local keyTitle = create("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 14, 0, 8),
+	Size = UDim2.new(1, -60, 0, 20),
+	Text = NEBROLIB.Settings.KeyName,
+	TextColor3 = T.Text,
+	Font = Enum.Font.GothamBlack,
+	TextSize = 18,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	Parent = keyHeader
+})
+
+local keyClose = create("TextButton", {
+	Size = UDim2.new(0, 24, 0, 24),
+	Position = UDim2.new(1, -30, 0, 8),
+	BackgroundColor3 = T.Panel2,
+	Text = "X",
+	TextColor3 = T.Accent,
+	Font = Enum.Font.GothamBlack,
+	TextSize = 13,
+	BorderSizePixel = 0,
+	Parent = keyHeader
+})
+roundify(keyClose, UDim.new(0, 7))
+border(keyClose, 1.1, T.Accent, 0.18)
+setInteractiveMotion(keyClose, {hoverBg = Color3.fromRGB(26, 34, 46), hoverStrokeTransparency = 0.08})
+
+local keyDesc = create("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 14, 0, 40),
+	Size = UDim2.new(1, -28, 0, 18),
+	Text = "Enter the key to unlock NEBROLIB",
+	TextColor3 = T.Muted,
+	Font = Enum.Font.Gotham,
+	TextSize = 12,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	Parent = keyModal
+})
+
+local keyBox = create("TextBox", {
+	Position = UDim2.new(0, 14, 0, 72),
+	Size = UDim2.new(1, -28, 0, 34),
+	BackgroundColor3 = T.BG,
+	Text = "",
+	PlaceholderText = "Enter key...",
+	TextColor3 = T.Text,
+	PlaceholderColor3 = T.Muted,
+	Font = Enum.Font.Gotham,
+	TextSize = 14,
+	ClearTextOnFocus = false,
+	BorderSizePixel = 0,
+	Parent = keyModal
+})
+roundify(keyBox, UDim.new(0, 8))
+border(keyBox, 1.2, T.Accent, 0.2)
+
+local confirmBtn = create("TextButton", {
+	Position = UDim2.new(0, 14, 1, -46),
+	Size = UDim2.new(1, -28, 0, 32),
+	BackgroundColor3 = T.Accent,
+	Text = "Confirm",
+	TextColor3 = Color3.fromRGB(0, 0, 0),
+	Font = Enum.Font.GothamBold,
+	TextSize = 15,
+	BorderSizePixel = 0,
+	Parent = keyModal
+})
+roundify(confirmBtn, UDim.new(0, 8))
+border(confirmBtn, 1.0, Color3.fromRGB(255, 255, 255), 0.55)
+setInteractiveMotion(confirmBtn, {hoverBg = Color3.fromRGB(78, 204, 245), hoverStrokeTransparency = 0.35})
+
+local notifIndex = 0
 local function notify(text, kind)
 	kind = tostring(kind or "info")
 	local c = T.Accent
-	if kind == "success" then c = T.Success
-	elseif kind == "error" then c = T.Error
-	elseif kind == "warning" then c = T.Warning end
+	if kind == "success" then
+		c = T.Success
+	elseif kind == "error" then
+		c = T.Error
+	elseif kind == "warning" then
+		c = T.Warning
+	end
 
-	notifOrder -= 1
+	notifIndex -= 1
 
 	local card = create("Frame", {
-		Size = UDim2.new(0, 300, 0, 42),
+		Size = UDim2.new(0, 300, 0, 44),
 		BackgroundColor3 = T.Panel2,
 		BorderSizePixel = 0,
-		LayoutOrder = notifOrder,
+		LayoutOrder = notifIndex,
 		Parent = notifHolder
 	})
-	round(card, UDim.new(0, 10))
-	stroke(card, 1.3, c, 0.1)
+	roundify(card, UDim.new(0, 10))
+	border(card, 1.4, c, 0.1)
 
 	local accent = create("Frame", {
-		Size = UDim2.new(0, 4, 1, -12),
-		Position = UDim2.new(0, 10, 0, 6),
+		Size = UDim2.new(0, 4, 1, -14),
+		Position = UDim2.new(0, 10, 0, 7),
 		BackgroundColor3 = c,
 		BorderSizePixel = 0,
 		Parent = card
 	})
-	round(accent, UDim.new(1, 0))
+	roundify(accent, UDim.new(1, 0))
 
 	local lbl = create("TextLabel", {
 		BackgroundTransparency = 1,
 		Position = UDim2.new(0, 22, 0, 0),
-		Size = UDim2.new(1, -28, 1, 0),
+		Size = UDim2.new(1, -30, 1, 0),
 		Text = tostring(text),
 		TextColor3 = T.Text,
 		Font = Enum.Font.GothamBold,
 		TextSize = 14,
-		TextWrapped = true,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		TextWrapped = true,
 		Parent = card
 	})
 
 	card.BackgroundTransparency = 1
 	lbl.TextTransparency = 1
 	accent.BackgroundTransparency = 1
-	tween(card, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 0})
-	tween(lbl, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextTransparency = 0})
-	tween(accent, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 0})
 
-	task.delay(2.0, function()
+	tween(card, 0.18, {BackgroundTransparency = 0})
+	tween(lbl, 0.18, {TextTransparency = 0})
+	tween(accent, 0.18, {BackgroundTransparency = 0})
+
+	task.delay(2.1, function()
 		if card and card.Parent then
-			tween(card, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 1})
-			tween(lbl, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextTransparency = 1})
-			tween(accent, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 1})
+			tween(card, 0.18, {BackgroundTransparency = 1})
+			tween(lbl, 0.18, {TextTransparency = 1})
+			tween(accent, 0.18, {BackgroundTransparency = 1})
 			task.wait(0.2)
 			if card then card:Destroy() end
 		end
@@ -488,14 +514,14 @@ local function notify(text, kind)
 end
 
 NEBROLIB.Utilities = {}
-NEBROLIB.Utilits = NEBROLIB.Utilities
 
 function NEBROLIB.Utilities.Create(className, props)
 	return create(className, props)
 end
 
-function NEBROLIB.Utilities.Tween(object, time, props, style, direction)
-	return tween(object, TweenInfo.new(time or 0.2, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out), props)
+function NEBROLIB.Utilities.Tween(object, timeValue, props, style, direction)
+	local info = TweenInfo.new(timeValue or 0.2, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out)
+	return tween(object, info, props)
 end
 
 function NEBROLIB.Utilities.Drag(frame, handle)
@@ -503,11 +529,11 @@ function NEBROLIB.Utilities.Drag(frame, handle)
 end
 
 function NEBROLIB.Utilities.Round(object, radius)
-	return round(object, radius)
+	return roundify(object, radius)
 end
 
 function NEBROLIB.Utilities.Border(object, thickness, color, transparency)
-	return stroke(object, thickness, color, transparency)
+	return border(object, thickness, color, transparency)
 end
 
 function NEBROLIB.Utilities.Notify(text, kind)
@@ -523,74 +549,90 @@ function NEBROLIB.makeWindow(titleStr, subtitleStr, authorStr)
 	subtitle.Text = NEBROLIB.Settings.Author
 end
 
-local function showMain()
-	mainFrame.Visible = true
-	mainFrame.Size = UDim2.new(0, 0, 0, 0)
-	mainScale.Scale = 0.94
-	tween(mainScale, TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Scale = 1})
-	tween(mainFrame, TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-		Size = UDim2.new(0, NEBROLIB.Settings.Width, 0, NEBROLIB.Settings.Height)
+local function intro(text)
+	local introFrame = create("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, 0.5, 0),
+		Size = UDim2.new(0, 0, 0, 0),
+		BackgroundColor3 = T.Panel,
+		BorderSizePixel = 0,
+		Parent = screenGui
 	})
-end
+	roundify(introFrame, UDim.new(0, 10))
+	border(introFrame, 2, T.Accent, 0.08)
 
-local function hideMain()
-	local tw1 = tween(mainScale, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Scale = 0.94})
-	local tw2 = tween(mainFrame, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
-	tw2.Completed:Wait()
-	mainFrame.Visible = false
-end
-
-local function openKeyModal()
-	overlay.Visible = true
-	overlay.BackgroundTransparency = 1
-	tween(overlay, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 0.35})
-
-	keyModal.Visible = true
-	keyModal.BackgroundTransparency = 0
-	keyModal.Size = UDim2.new(0, 320, 0, 172)
-	keyScale.Scale = 0.95
-	tween(keyScale, TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Scale = 1})
-	tween(keyModal, TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-		Size = UDim2.new(0, 360, 0, 190)
+	create("TextLabel", {
+		BackgroundTransparency = 1,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, 0.5, 0),
+		Size = UDim2.new(1, -18, 1, -18),
+		Text = text or "NEBROLIB",
+		TextColor3 = T.Accent,
+		TextStrokeTransparency = 0.6,
+		TextStrokeColor3 = Color3.fromRGB(0, 0, 0),
+		Font = Enum.Font.GothamBlack,
+		TextScaled = true,
+		Parent = introFrame
 	})
-end
 
-local function closeKeyModal()
-	tween(overlay, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {BackgroundTransparency = 1})
-	tween(keyScale, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Scale = 0.95})
-	tween(keyModal, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-		Size = UDim2.new(0, 320, 0, 172)
+	local w, h = 300, 62
+	introFrame.Visible = true
+	introFrame.Size = UDim2.new(0, 0, 0, h)
+	tween(introFrame, 0.28, {Size = UDim2.new(0, w, 0, h)})
+	task.wait(0.38)
+	task.wait(1.5)
+	tween(introFrame, 0.22, {
+		Size = UDim2.new(0, 0, 0, h),
+		Position = UDim2.new(0.5, 0, 0.5, -10)
 	})
-	task.wait(0.15)
-	keyModal.Visible = false
-	overlay.Visible = false
-	overlay.BackgroundTransparency = 0.35
+	task.wait(0.24)
+	introFrame:Destroy()
 end
 
-local function validateKey(inputKey)
-	local key = trimLower(inputKey)
-	for _, v in ipairs(NEBROLIB.Settings.ValidKeys or {}) do
-		if key == trimLower(v) then
-			return true
-		end
-	end
-	return false
-end
-
-local function revealToggle()
-	toggleBtn.Visible = true
-	tween(toggleBtn, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundTransparency = 0})
+function NEBROLIB.makeIntro(introText)
+	NEBROLIB.Settings.IntroText = introText or NEBROLIB.Settings.IntroText
+	intro(NEBROLIB.Settings.IntroText)
 end
 
 local tabs = {}
-local selectedTab
+local selectedTab = nil
+local minimized = false
+local expandedSize = UDim2.new(0, NEBROLIB.Settings.Width, 0, NEBROLIB.Settings.Height)
+local unlocked = not NEBROLIB.Settings.KeySystem
 
-local function setSelected(entry)
+local function showMain()
+	mainFrame.Visible = true
+	mainFrame.Size = UDim2.new(0, 0, 0, 0)
+	pagesContainer.Visible = true
+	tabContainer.Visible = true
+	minBtn.Text = "-"
+	minimized = false
+	tween(mainFrame, 0.24, {Size = expandedSize})
+end
+
+local function hideMain()
+	local tw = tween(mainFrame, 0.2, {Size = UDim2.new(0, 0, 0, 0)})
+	tw.Completed:Wait()
+	mainFrame.Visible = false
+end
+
+local function revealToggleButton()
+	if toggleBtn.Visible then return end
+	toggleBtn.Visible = true
+	toggleBtn.Size = UDim2.new(0, 0, 0, 0)
+	tween(toggleBtn, 0.22, {Size = UDim2.new(0, 38, 0, 38)})
+end
+
+local function deselectAllTabs()
 	for _, t in ipairs(tabs) do
 		t.page.Visible = false
 		t.button.BackgroundColor3 = T.Panel2
 		t.stroke.Transparency = 1
 	end
+end
+
+local function selectTab(entry)
+	deselectAllTabs()
 	entry.page.Visible = true
 	entry.button.BackgroundColor3 = T.Panel
 	entry.stroke.Transparency = 0
@@ -599,24 +641,24 @@ end
 
 function NEBROLIB.createTab(name, iconText)
 	local tabBtn = create("TextButton", {
-		Size = UDim2.new(1, 0, 0, 28),
+		Size = UDim2.new(1, 0, 0, 30),
 		BackgroundColor3 = T.Panel2,
-		Text = "",
 		BorderSizePixel = 0,
+		Text = "",
 		Parent = tabContainer
 	})
-	round(tabBtn, UDim.new(0, 7))
-	local s = stroke(tabBtn, 1.45, T.Accent, 1)
+	roundify(tabBtn, UDim.new(0, 8))
+	local s = border(tabBtn, 1.5, T.Accent, 1)
 
 	local iconBox = create("Frame", {
-		Size = UDim2.new(0, 24, 0, 24),
-		Position = UDim2.new(0, 3, 0.5, -12),
+		Size = UDim2.new(0, 26, 0, 26),
+		Position = UDim2.new(0, 3, 0.5, -13),
 		BackgroundColor3 = T.BG,
 		BorderSizePixel = 0,
 		Parent = tabBtn
 	})
-	round(iconBox, UDim.new(0, 6))
-	stroke(iconBox, 1, T.Accent, 0.35)
+	roundify(iconBox, UDim.new(0, 6))
+	border(iconBox, 1, T.Accent, 0.35)
 
 	create("TextLabel", {
 		BackgroundTransparency = 1,
@@ -624,34 +666,30 @@ function NEBROLIB.createTab(name, iconText)
 		Text = tostring(iconText or "NB"),
 		TextColor3 = T.Accent,
 		Font = Enum.Font.GothamBlack,
-		TextSize = 11,
+		TextSize = 12,
 		Parent = iconBox
 	})
 
 	create("TextLabel", {
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 30, 0, 0),
-		Size = UDim2.new(1, -34, 1, 0),
+		Position = UDim2.new(0, 33, 0, 0),
+		Size = UDim2.new(1, -36, 1, 0),
 		Text = tostring(name),
 		TextColor3 = T.Text,
 		Font = Enum.Font.GothamBold,
-		TextSize = 12,
+		TextSize = 13,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = tabBtn
 	})
 
-	local page = create("ScrollingFrame", {
+	local page = create("Frame", {
+		Size = UDim2.new(1, 0, 0, 0),
 		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		Size = UDim2.new(1, -4, 0, 0),
 		Visible = false,
-		ScrollBarThickness = 6,
-		AutomaticCanvasSize = Enum.AutomaticSize.Y,
-		CanvasSize = UDim2.new(0, 0, 0, 0),
-		VerticalScrollBarInset = Enum.ScrollBarInset.Always,
-		Parent = pagesClip
+		AutomaticSize = Enum.AutomaticSize.Y,
+		Parent = pagesContainer
 	})
-	padding(page, 2, 2, 2, 2)
+
 	create("UIListLayout", {
 		Padding = UDim.new(0, 10),
 		SortOrder = Enum.SortOrder.LayoutOrder,
@@ -662,38 +700,40 @@ function NEBROLIB.createTab(name, iconText)
 	table.insert(tabs, entry)
 
 	tabBtn.MouseButton1Click:Connect(function()
-		setSelected(entry)
+		selectTab(entry)
 	end)
 
 	if not selectedTab then
 		task.defer(function()
 			if entry and entry.page then
-				setSelected(entry)
+				selectTab(entry)
 			end
 		end)
 	end
 
+	setInteractiveMotion(tabBtn, {hoverBg = Color3.fromRGB(26, 34, 46), hoverStrokeTransparency = 0.08})
+
 	return page
 end
 
-local function baseBox(parent, height)
+local function boxBase(parent, height)
 	local box = create("Frame", {
-		Size = UDim2.new(1, -4, 0, height or 48),
+		Size = UDim2.new(1, -6, 0, height or 44),
 		BackgroundColor3 = T.Panel,
 		BorderSizePixel = 0,
 		AutomaticSize = Enum.AutomaticSize.Y,
 		Parent = parent
 	})
-	round(box, UDim.new(0, 8))
-	stroke(box, 1.1, T.Accent, 0.12)
-	padding(box, 10, 8, 10, 8)
+	roundify(box, UDim.new(0, 8))
+	border(box, 1.15, T.Accent, 0.1)
+	pad(box, 10, 8, 10, 8)
 	return box
 end
 
 function NEBROLIB.createSection(parent, text)
 	return create("TextLabel", {
 		BackgroundTransparency = 1,
-		Size = UDim2.new(1, -4, 0, 18),
+		Size = UDim2.new(1, -6, 0, 18),
 		Text = "  " .. tostring(text),
 		TextColor3 = T.Accent,
 		Font = Enum.Font.GothamBold,
@@ -704,14 +744,14 @@ function NEBROLIB.createSection(parent, text)
 end
 
 function NEBROLIB.createTextLabel(parent, text)
-	local box = baseBox(parent, 42)
+	local box = boxBase(parent, 40)
 	create("TextLabel", {
 		BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 1, 0),
 		Text = tostring(text),
 		TextColor3 = T.Text,
 		Font = Enum.Font.Gotham,
-		TextSize = 13,
+		TextSize = 14,
 		TextWrapped = true,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top,
@@ -721,14 +761,14 @@ function NEBROLIB.createTextLabel(parent, text)
 end
 
 function NEBROLIB.createParagraph(parent, text)
-	local box = baseBox(parent, 60)
+	local box = boxBase(parent, 58)
 	create("TextLabel", {
 		BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 1, 0),
 		Text = tostring(text),
 		TextColor3 = T.Muted,
 		Font = Enum.Font.Gotham,
-		TextSize = 12,
+		TextSize = 13,
 		TextWrapped = true,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top,
@@ -738,54 +778,52 @@ function NEBROLIB.createParagraph(parent, text)
 end
 
 function NEBROLIB.createButton(parent, text, callback)
-	local box = baseBox(parent, 40)
+	local box = boxBase(parent, 42)
 	local btn = create("TextButton", {
-		Size = UDim2.new(1, 0, 0, 26),
+		Size = UDim2.new(1, 0, 0, 28),
 		BackgroundColor3 = T.Accent,
+		BorderSizePixel = 0,
 		Text = tostring(text),
 		TextColor3 = Color3.fromRGB(0, 0, 0),
 		Font = Enum.Font.GothamBold,
-		TextSize = 13,
-		BorderSizePixel = 0,
+		TextSize = 14,
 		Parent = box
 	})
-	round(btn, UDim.new(0, 7))
-	stroke(btn, 1, Color3.fromRGB(255, 255, 255), 0.58)
-	hoverButton(btn, T.Accent, Color3.fromRGB(78, 204, 245), 0.58, 0.42)
-
+	roundify(btn, UDim.new(0, 8))
+	border(btn, 1, Color3.fromRGB(255, 255, 255), 0.55)
+	setInteractiveMotion(btn, {hoverBg = Color3.fromRGB(78, 204, 245), hoverStrokeTransparency = 0.35})
 	btn.MouseButton1Click:Connect(function()
-		tween(btn, TweenInfo.new(0.07, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(78, 204, 245)})
+		tween(btn, 0.08, {BackgroundColor3 = Color3.fromRGB(78, 204, 245)})
 		task.delay(0.08, function()
 			if btn and btn.Parent then
-				tween(btn, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = T.Accent})
+				tween(btn, 0.08, {BackgroundColor3 = T.Accent})
 			end
 		end)
 		if callback then callback() end
 	end)
-
 	return box
 end
 
 function NEBROLIB.createTextBox(parent, placeholder, callback)
-	local box = baseBox(parent, 44)
+	local box = boxBase(parent, 44)
 	local txt = create("TextBox", {
-		Size = UDim2.new(1, 0, 0, 26),
+		Size = UDim2.new(1, 0, 0, 28),
 		BackgroundColor3 = T.BG,
+		BorderSizePixel = 0,
 		Text = "",
 		PlaceholderText = tostring(placeholder or "Enter..."),
-		TextColor3 = T.Text,
 		PlaceholderColor3 = T.Muted,
+		TextColor3 = T.Text,
 		ClearTextOnFocus = false,
 		Font = Enum.Font.Gotham,
-		TextSize = 13,
-		BorderSizePixel = 0,
+		TextSize = 14,
 		Parent = box
 	})
-	round(txt, UDim.new(0, 7))
-	stroke(txt, 1.1, T.Accent, 0.2)
+	roundify(txt, UDim.new(0, 8))
+	border(txt, 1.15, T.Accent, 0.2)
 
-	txt.FocusLost:Connect(function(enter)
-		if enter and callback then
+	txt.FocusLost:Connect(function(enterPressed)
+		if enterPressed and callback then
 			callback(txt.Text)
 		end
 	end)
@@ -795,20 +833,21 @@ end
 
 function NEBROLIB.createDropdown(parent, options, defaultIndex, callback)
 	options = options or {}
-	local box = baseBox(parent, 50)
+	local box = boxBase(parent, 46)
 
 	local mainBtn = create("TextButton", {
-		Size = UDim2.new(1, 0, 0, 26),
+		Size = UDim2.new(1, 0, 0, 28),
 		BackgroundColor3 = T.BG,
-		Text = tostring(options[defaultIndex or 1] or options[1] or "None"),
 		TextColor3 = T.Text,
+		Text = tostring(options[defaultIndex or 1] or options[1] or "None"),
 		Font = Enum.Font.Gotham,
-		TextSize = 13,
+		TextSize = 14,
 		BorderSizePixel = 0,
 		Parent = box
 	})
-	round(mainBtn, UDim.new(0, 7))
-	stroke(mainBtn, 1.1, T.Accent, 0.2)
+	roundify(mainBtn, UDim.new(0, 8))
+	border(mainBtn, 1.15, T.Accent, 0.2)
+	setInteractiveMotion(mainBtn, {hoverBg = Color3.fromRGB(18, 24, 34), hoverStrokeTransparency = 0.12})
 
 	local listFrame = create("Frame", {
 		Visible = false,
@@ -818,8 +857,8 @@ function NEBROLIB.createDropdown(parent, options, defaultIndex, callback)
 		BorderSizePixel = 0,
 		Parent = box
 	})
-	round(listFrame, UDim.new(0, 7))
-	stroke(listFrame, 1.1, T.Accent, 0.2)
+	roundify(listFrame, UDim.new(0, 8))
+	border(listFrame, 1.1, T.Accent, 0.2)
 
 	local scroll = create("ScrollingFrame", {
 		BackgroundTransparency = 1,
@@ -829,7 +868,7 @@ function NEBROLIB.createDropdown(parent, options, defaultIndex, callback)
 		CanvasSize = UDim2.new(0, 0, 0, 0),
 		Parent = listFrame
 	})
-	padding(scroll, 6, 6, 6, 6)
+	pad(scroll, 6, 6, 6, 6)
 	create("UIListLayout", {
 		Padding = UDim.new(0, 4),
 		SortOrder = Enum.SortOrder.LayoutOrder,
@@ -840,17 +879,18 @@ function NEBROLIB.createDropdown(parent, options, defaultIndex, callback)
 
 	for _, opt in ipairs(options) do
 		local item = create("TextButton", {
-			Size = UDim2.new(1, 0, 0, 24),
+			Size = UDim2.new(1, 0, 0, 26),
 			BackgroundColor3 = T.Panel2,
 			Text = tostring(opt),
 			TextColor3 = T.Text,
 			Font = Enum.Font.Gotham,
-			TextSize = 12,
+			TextSize = 13,
 			BorderSizePixel = 0,
 			Parent = scroll
 		})
-		round(item, UDim.new(0, 6))
-		stroke(item, 1, T.Accent, 0.45)
+		roundify(item, UDim.new(0, 6))
+		border(item, 1, T.Accent, 0.45)
+		setInteractiveMotion(item, {hoverBg = Color3.fromRGB(28, 36, 48), hoverStrokeTransparency = 0.2})
 
 		item.MouseButton1Click:Connect(function()
 			mainBtn.Text = tostring(opt)
@@ -860,8 +900,8 @@ function NEBROLIB.createDropdown(parent, options, defaultIndex, callback)
 		end)
 	end
 
-	local h = math.clamp(#options * 28 + 10, 32, 144)
-	listFrame.Size = UDim2.new(1, 0, 0, h)
+	local count = #options
+	listFrame.Size = UDim2.new(1, 0, 0, math.clamp(count * 30 + 10, 34, 160))
 
 	mainBtn.MouseButton1Click:Connect(function()
 		open = not open
@@ -872,58 +912,60 @@ function NEBROLIB.createDropdown(parent, options, defaultIndex, callback)
 end
 
 function NEBROLIB.createToggle(parent, text, default, callback)
-	local box = baseBox(parent, 44)
+	local box = boxBase(parent, 44)
 
 	create("TextLabel", {
 		BackgroundTransparency = 1,
-		Size = UDim2.new(1, -54, 1, 0),
+		Size = UDim2.new(1, -58, 1, 0),
 		Text = tostring(text),
 		TextColor3 = T.Text,
 		Font = Enum.Font.Gotham,
-		TextSize = 13,
+		TextSize = 14,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = box
 	})
 
 	local toggle = create("TextButton", {
-		Size = UDim2.new(0, 44, 0, 20),
-		Position = UDim2.new(1, -46, 0.5, -10),
+		Size = UDim2.new(0, 48, 0, 22),
+		Position = UDim2.new(1, -50, 0.5, -11),
 		BackgroundColor3 = default and T.Accent or T.Panel2,
 		Text = "",
 		AutoButtonColor = false,
 		BorderSizePixel = 0,
 		Parent = box
 	})
-	round(toggle, UDim.new(1, 0))
-	stroke(toggle, 1.1, T.Accent, 0.15)
+	roundify(toggle, UDim.new(1, 0))
+	border(toggle, 1.1, T.Accent, 0.15)
 
 	local knob = create("Frame", {
-		Size = UDim2.new(0, 16, 0, 16),
-		Position = default and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8),
+		Size = UDim2.new(0, 18, 0, 18),
+		Position = default and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9),
 		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 		BorderSizePixel = 0,
 		Parent = toggle
 	})
-	round(knob, UDim.new(1, 0))
+	roundify(knob, UDim.new(1, 0))
 
 	local state = default and true or false
 	local function update(animated)
 		if state then
 			toggle.BackgroundColor3 = T.Accent
 			if animated then
-				knob:TweenPosition(UDim2.new(1, -18, 0.5, -8), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.12, true)
+				knob:TweenPosition(UDim2.new(1, -20, 0.5, -9), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.12, true)
 			else
-				knob.Position = UDim2.new(1, -18, 0.5, -8)
+				knob.Position = UDim2.new(1, -20, 0.5, -9)
 			end
 		else
 			toggle.BackgroundColor3 = T.Panel2
 			if animated then
-				knob:TweenPosition(UDim2.new(0, 2, 0.5, -8), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.12, true)
+				knob:TweenPosition(UDim2.new(0, 2, 0.5, -9), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.12, true)
 			else
-				knob.Position = UDim2.new(0, 2, 0.5, -8)
+				knob.Position = UDim2.new(0, 2, 0.5, -9)
 			end
 		end
 	end
+
+	setInteractiveMotion(toggle, {hoverBg = state and Color3.fromRGB(78, 204, 245) or Color3.fromRGB(28, 36, 48), hoverStrokeTransparency = 0.08})
 
 	toggle.MouseButton1Click:Connect(function()
 		state = not state
@@ -940,11 +982,11 @@ function NEBROLIB.createSlider(parent, labelText, min, max, defaultValue, callba
 	max = tonumber(max) or 100
 	defaultValue = tonumber(defaultValue) or min
 
-	local box = baseBox(parent, 52)
+	local box = boxBase(parent, 52)
 
 	local row = create("Frame", {
 		BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0, 16),
+		Size = UDim2.new(1, 0, 0, 18),
 		Parent = box
 	})
 
@@ -954,7 +996,7 @@ function NEBROLIB.createSlider(parent, labelText, min, max, defaultValue, callba
 		Text = tostring(labelText or "Slider"),
 		TextColor3 = T.Text,
 		Font = Enum.Font.Gotham,
-		TextSize = 13,
+		TextSize = 14,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = row
 	})
@@ -966,7 +1008,7 @@ function NEBROLIB.createSlider(parent, labelText, min, max, defaultValue, callba
 		Text = tostring(defaultValue),
 		TextColor3 = T.Accent,
 		Font = Enum.Font.GothamBold,
-		TextSize = 13,
+		TextSize = 14,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		Parent = row
 	})
@@ -978,15 +1020,15 @@ function NEBROLIB.createSlider(parent, labelText, min, max, defaultValue, callba
 		BorderSizePixel = 0,
 		Parent = box
 	})
-	round(bar, UDim.new(1, 0))
-	stroke(bar, 1, T.Accent, 0.25)
+	roundify(bar, UDim.new(1, 0))
+	border(bar, 1, T.Accent, 0.25)
 
 	local fill = create("Frame", {
 		BackgroundColor3 = T.Accent,
 		BorderSizePixel = 0,
 		Parent = bar
 	})
-	round(fill, UDim.new(1, 0))
+	roundify(fill, UDim.new(1, 0))
 
 	local knob = create("Frame", {
 		Size = UDim2.new(0, 16, 0, 16),
@@ -994,16 +1036,16 @@ function NEBROLIB.createSlider(parent, labelText, min, max, defaultValue, callba
 		BorderSizePixel = 0,
 		Parent = bar
 	})
-	round(knob, UDim.new(1, 0))
-	stroke(knob, 1, Color3.fromRGB(255, 255, 255), 0.55)
+	roundify(knob, UDim.new(1, 0))
+	border(knob, 1, Color3.fromRGB(255, 255, 255), 0.55)
 
 	local dragging = false
 
 	local function setValue(v, fire)
 		v = math.clamp(math.floor(v + 0.5), min, max)
-		local p = (v - min) / math.max(1, max - min)
-		fill.Size = UDim2.new(p, 0, 1, 0)
-		knob.Position = UDim2.new(p, -8, 0.5, -8)
+		local percent = (v - min) / math.max(1, (max - min))
+		fill.Size = UDim2.new(percent, 0, 1, 0)
+		knob.Position = UDim2.new(percent, -8, 0.5, -8)
 		valueLabel.Text = tostring(v)
 		if fire and callback then
 			callback(v)
@@ -1012,8 +1054,8 @@ function NEBROLIB.createSlider(parent, labelText, min, max, defaultValue, callba
 
 	local function getValueFromX(x)
 		local rel = x - bar.AbsolutePosition.X
-		local p = math.clamp(rel / math.max(1, bar.AbsoluteSize.X), 0, 1)
-		return min + ((max - min) * p)
+		local percent = math.clamp(rel / math.max(1, bar.AbsoluteSize.X), 0, 1)
+		return min + ((max - min) * percent)
 	end
 
 	bar.InputBegan:Connect(function(input)
@@ -1049,16 +1091,11 @@ function NEBROLIB.createLabel(parent, text)
 	return NEBROLIB.createTextLabel(parent, text)
 end
 
-function NEBROLIB.Notify(text, kind)
-	notify(text, kind)
-end
-
 function NEBROLIB.createNotification(text, kind)
 	notify(text, kind)
 end
 
 function NEBROLIB.show()
-	revealToggle()
 	showMain()
 end
 
@@ -1066,85 +1103,59 @@ function NEBROLIB.hide()
 	hideMain()
 end
 
-function NEBROLIB.Init(config)
-	config = config or {}
-	merge(NEBROLIB.Settings, config)
-	merge(T, NEBROLIB.Settings.Theme)
+local function showKeyModal()
+	overlay.Visible = true
+	overlay.BackgroundTransparency = 1
+	tween(overlay, 0.18, {BackgroundTransparency = 0.35})
 
-	title.Text = NEBROLIB.Settings.Title
-	title2.Text = NEBROLIB.Settings.SubTitle
-	subtitle.Text = NEBROLIB.Settings.Author
-	keyTitle.Text = NEBROLIB.Settings.KeyName
-	mainFrame.Size = UDim2.new(0, NEBROLIB.Settings.Width, 0, NEBROLIB.Settings.Height)
+	keyModal.Visible = true
+	keyModal.BackgroundTransparency = 0
+	keyModal.Size = UDim2.new(0, 320, 0, 172)
+	tween(keyModal, 0.24, {Size = UDim2.new(0, 360, 0, 190)})
+end
 
-	task.spawn(function()
-		local introFrame = create("Frame", {
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.5, 0, 0.5, 0),
-			Size = UDim2.new(0, 0, 0, 0),
-			BackgroundColor3 = T.Panel,
-			BorderSizePixel = 0,
-			Parent = screenGui
-		})
-		round(introFrame, UDim.new(0, 10))
-		stroke(introFrame, 2, T.Accent, 0.08)
+local function closeKeyModal()
+	tween(keyModal, 0.18, {BackgroundTransparency = 1, Size = UDim2.new(0, 320, 0, 172)})
+	tween(overlay, 0.18, {BackgroundTransparency = 1})
+	task.wait(0.18)
+	keyModal.Visible = false
+	overlay.Visible = false
+	keyModal.BackgroundTransparency = 0
+	overlay.BackgroundTransparency = 0.35
+end
 
-		local introLabel = create("TextLabel", {
-			BackgroundTransparency = 1,
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.5, 0, 0.5, 0),
-			Size = UDim2.new(1, -18, 1, -18),
-			Text = NEBROLIB.Settings.IntroText or "NEBROLIB",
-			TextColor3 = T.Accent,
-			TextStrokeTransparency = 0.6,
-			TextStrokeColor3 = Color3.fromRGB(0, 0, 0),
-			Font = Enum.Font.GothamBlack,
-			TextScaled = true,
-			Parent = introFrame
-		})
-
-		introFrame.Visible = true
-		introFrame.Size = UDim2.new(0, 0, 0, 62)
-		tween(introFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-			Size = UDim2.new(0, 300, 0, 62)
-		})
-		task.wait(0.33)
-		task.wait(1.3)
-		tween(introFrame, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-			Size = UDim2.new(0, 0, 0, 62),
-			Position = UDim2.new(0.5, 0, 0.5, -10)
-		})
-		task.wait(0.2)
-		introFrame:Destroy()
-
-		if NEBROLIB.Settings.KeySystem then
-			openKeyModal()
-		else
-			revealToggle()
+local function validateKey(k)
+	local key = trimLower(k)
+	for _, v in ipairs(NEBROLIB.Settings.ValidKeys or {}) do
+		if key == trimLower(v) then
+			return true
 		end
-	end)
+	end
+	return false
+end
+
+local function unlockLibrary()
+	closeKeyModal()
+	revealToggleButton()
+	showMain()
+	notify("Key accepted", "success")
 end
 
 keyClose.MouseButton1Click:Connect(function()
-	keyModal.Visible = false
-	overlay.Visible = false
+	closeKeyModal()
 end)
 
 confirmBtn.MouseButton1Click:Connect(function()
-	if validateKey(keyBox.Text) then
-		notify("Key accepted", "success")
-		closeKeyModal()
-		revealToggle()
+	local entered = keyBox.Text or ""
+	if validateKey(entered) then
+		unlocked = true
+		unlockLibrary()
 	else
 		notify("Invalid key", "error")
-		tween(keyBox, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			BackgroundColor3 = Color3.fromRGB(60, 25, 25)
-		})
-		task.delay(0.15, function()
+		tween(keyBox, 0.08, {BackgroundColor3 = Color3.fromRGB(60, 25, 25)})
+		task.delay(0.16, function()
 			if keyBox and keyBox.Parent then
-				tween(keyBox, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-					BackgroundColor3 = T.BG
-				})
+				tween(keyBox, 0.08, {BackgroundColor3 = T.BG})
 			end
 		end)
 	end
@@ -1156,20 +1167,18 @@ end)
 
 minBtn.MouseButton1Click:Connect(function()
 	if not mainFrame.Visible then return end
-	if pagesContainer.Visible then
+	if not minimized then
+		minimized = true
 		pagesContainer.Visible = false
 		tabContainer.Visible = false
 		minBtn.Text = "+"
-		tween(mainFrame, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			Size = UDim2.new(0, NEBROLIB.Settings.Width, 0, 40)
-		})
+		tween(mainFrame, 0.2, {Size = UDim2.new(0, NEBROLIB.Settings.Width, 0, 40)})
 	else
+		minimized = false
 		pagesContainer.Visible = true
 		tabContainer.Visible = true
 		minBtn.Text = "-"
-		tween(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-			Size = UDim2.new(0, NEBROLIB.Settings.Width, 0, NEBROLIB.Settings.Height)
-		})
+		tween(mainFrame, 0.22, {Size = expandedSize})
 	end
 end)
 
@@ -1177,15 +1186,47 @@ toggleBtn.MouseButton1Click:Connect(function()
 	if mainFrame.Visible then
 		hideMain()
 	else
+		pagesContainer.Visible = true
+		tabContainer.Visible = true
+		minBtn.Text = "-"
 		showMain()
 	end
 end)
 
 makeDraggable(mainFrame, topBar)
+makeDraggable(toggleBtn, toggleBtn)
+makeDraggable(keyModal, keyHeader)
 
+function NEBROLIB.Init(config)
+	config = config or {}
+	mergeTable(NEBROLIB.Settings, config)
+	mergeTable(T, NEBROLIB.Settings.Theme)
+	title.Text = NEBROLIB.Settings.Title
+	title2.Text = NEBROLIB.Settings.SubTitle
+	subtitle.Text = NEBROLIB.Settings.Author
+	keyTitle.Text = NEBROLIB.Settings.KeyName
+	mainFrame.Size = UDim2.new(0, NEBROLIB.Settings.Width, 0, NEBROLIB.Settings.Height)
+	expandedSize = UDim2.new(0, NEBROLIB.Settings.Width, 0, NEBROLIB.Settings.Height)
+
+	task.spawn(function()
+		intro(NEBROLIB.Settings.IntroText)
+
+		if NEBROLIB.Settings.KeySystem then
+			toggleBtn.Visible = false
+			showKeyModal()
+		else
+			revealToggleButton()
+			showMain()
+		end
+	end)
+end
+
+NEBROLIB.Notify = notify
 NEBROLIB.screenGui = screenGui
 NEBROLIB.mainFrame = mainFrame
 NEBROLIB.keyModal = keyModal
 NEBROLIB.overlay = overlay
+NEBROLIB.toggleButton = toggleBtn
+NEBROLIB.tabs = tabs
 
 return NEBROLIB
