@@ -1,19 +1,70 @@
--- NEBROLIB ADVANCED UI LIBRARY
+-- NEBROLIB ADVANCED UI LIBRARY (Executor-friendly edits)
 -- Compact Redz-style layout, Cyan theme, Key System, stacked notifications
--- Utilities removed by request
--- Made by: NEBROLIB
+-- Made by: NEBROLIB (modified for executor compatibility)
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
+-- Wait for LocalPlayer in case script runs early
 local player = Players.LocalPlayer
-local gui = player:WaitForChild("PlayerGui")
+if not player and RunService:IsClient() then
+	repeat
+		player = Players.LocalPlayer
+		task.wait()
+	until player
+end
 
+-- choose best parent for ScreenGui (PlayerGui preferred; fallback to gethui()/CoreGui)
+local function chooseGuiParent()
+	-- prefer PlayerGui if available
+	if player and player:FindFirstChild("PlayerGui") then
+		return player:WaitForChild("PlayerGui")
+	end
+
+	-- gethui (some executors provide)
+	if typeof(gethui) == "function" then
+		local ok, h = pcall(gethui)
+		if ok and h then return h end
+	end
+
+	-- fallback to CoreGui
+	local ok, core = pcall(function() return game:GetService("CoreGui") end)
+	if ok and core then return core end
+
+	-- final fallback to StarterGui or workspace (very unlikely)
+	return game:FindFirstChild("StarterGui") or game:GetService("CoreGui")
+end
+
+-- executor detection & utilities
+local function detectExecutor()
+	local exe = "Unknown"
+	local ok, _
+
+	ok = syn and type(syn) == "table"
+	if ok then exe = "Synapse" end
+
+	ok = (type(KRNL_LOADED) == "boolean" or type(Krnl) == "table")
+	if ok then exe = "Krnl" end
+
+	ok = type(secure_load) == "function" or type(readfile) == "function" and is_sirhurt and true or false
+	-- generic checks
+	if not (exe ~= "Unknown") then
+		if type(identifyexecutor) == "function" then
+			local success, name = pcall(identifyexecutor)
+			if success and type(name) == "string" then exe = name end
+		end
+	end
+
+	return exe
+end
+
+-- global library table
 local NEBROLIB = {}
-_G.NEBROLIB = NEBROLIB
+_G.NEBROLIB = _G.NEBROLIB or NEBROLIB
 if getgenv then
-	getgenv().NEBROLIB = NEBROLIB
+	getgenv().NEBROLIB = getgenv().NEBROLIB or NEBROLIB
 end
 
 NEBROLIB.Settings = {
@@ -27,6 +78,8 @@ NEBROLIB.Settings = {
 	ValidKeys = {"nebro", "pro", "123"},
 	Width = 440,
 	Height = 270,
+	-- ToggleKey: changeable by user when calling Init
+	ToggleKey = Enum.KeyCode.RightControl,
 	Theme = {
 		Accent = Color3.fromRGB(92, 220, 255),
 		BG = Color3.fromRGB(11, 15, 20),
@@ -42,6 +95,7 @@ NEBROLIB.Settings = {
 
 local T = NEBROLIB.Settings.Theme
 
+-- simple deep merge
 local function mergeTable(a, b)
 	if type(b) ~= "table" then return a end
 	for k, v in pairs(b) do
@@ -57,7 +111,8 @@ end
 local function create(className, props)
 	local inst = Instance.new(className)
 	for k, v in pairs(props or {}) do
-		inst[k] = v
+		-- protect read-only mistakes
+		pcall(function() inst[k] = v end)
 	end
 	return inst
 end
@@ -90,9 +145,12 @@ end
 
 local function tween(obj, timeOrInfo, props)
 	local info = typeof(timeOrInfo) == "TweenInfo" and timeOrInfo or TweenInfo.new(timeOrInfo or 0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	local tw = TweenService:Create(obj, info, props)
-	tw:Play()
-	return tw
+	local ok, tw = pcall(function() return TweenService:Create(obj, info, props) end)
+	if ok and tw then
+		pcall(function() tw:Play() end)
+		return tw
+	end
+	return nil
 end
 
 local function trimLower(s)
@@ -122,27 +180,31 @@ local function setInteractiveMotion(obj, opts)
 	local normalStrokeTransparency = stroke and stroke.Transparency or nil
 
 	obj.MouseEnter:Connect(function()
-		tween(obj, 0.12, {BackgroundColor3 = hoverBg})
-		tween(scale, 0.12, {Scale = hoverScale})
-		if stroke and opts.hoverStrokeTransparency ~= nil then
-			tween(stroke, 0.12, {Transparency = opts.hoverStrokeTransparency})
-		end
+		pcall(function()
+			tween(obj, 0.12, {BackgroundColor3 = hoverBg})
+			tween(scale, 0.12, {Scale = hoverScale})
+			if stroke and opts.hoverStrokeTransparency ~= nil then
+				tween(stroke, 0.12, {Transparency = opts.hoverStrokeTransparency})
+			end
+		end)
 	end)
 
 	obj.MouseLeave:Connect(function()
-		tween(obj, 0.12, {BackgroundColor3 = normalBg})
-		tween(scale, 0.12, {Scale = 1})
-		if stroke and normalStrokeTransparency ~= nil then
-			tween(stroke, 0.12, {Transparency = normalStrokeTransparency})
-		end
+		pcall(function()
+			tween(obj, 0.12, {BackgroundColor3 = normalBg})
+			tween(scale, 0.12, {Scale = 1})
+			if stroke and normalStrokeTransparency ~= nil then
+				tween(stroke, 0.12, {Transparency = normalStrokeTransparency})
+			end
+		end)
 	end)
 
 	obj.MouseButton1Down:Connect(function()
-		tween(scale, 0.06, {Scale = downScale})
+		pcall(function() tween(scale, 0.06, {Scale = downScale}) end)
 	end)
 
 	obj.MouseButton1Up:Connect(function()
-		tween(scale, 0.08, {Scale = hoverScale})
+		pcall(function() tween(scale, 0.08, {Scale = hoverScale}) end)
 	end)
 end
 
@@ -181,12 +243,54 @@ local function makeDraggable(frame, handle)
 	end)
 end
 
+-- Create ScreenGui with safe parent selection and protection for executors
+local parentGui = chooseGuiParent()
+
+-- clean up existing UI to avoid duplicates
+local function cleanupExisting(parent)
+	pcall(function()
+		local existing = parent:FindFirstChild("NEBROLIBUI")
+		if existing then existing:Destroy() end
+	end)
+end
+cleanupExisting(parentGui)
+
 local screenGui = create("ScreenGui", {
 	Name = "NEBROLIBUI",
 	ResetOnSpawn = false,
 	IgnoreGuiInset = true,
-	Parent = gui
+	Parent = nil -- parent after protection
 })
+
+-- Protect GUI if executor provides protect function (Synapse, others)
+local function protectGuiIfPossible(guiObj)
+	-- syn.protect_gui
+	if type(syn) == "table" and type(syn.protect_gui) == "function" then
+		pcall(function() syn.protect_gui(guiObj) end)
+		-- parent to CoreGui after protecting for best visibility
+		local ok, core = pcall(function() return game:GetService("CoreGui") end)
+		if ok and core then
+			guiObj.Parent = core
+			return true
+		end
+	end
+
+	-- generic protect_gui (some executors)
+	if type(protect_gui) == "function" then
+		pcall(function() protect_gui(guiObj) end)
+		local ok, core = pcall(function() return game:GetService("CoreGui") end)
+		if ok and core then
+			guiObj.Parent = core
+			return true
+		end
+	end
+
+	-- fallback: parent to the earlier chosen parent
+	guiObj.Parent = parentGui
+	return false
+end
+
+protectGuiIfPossible(screenGui)
 
 local mainFrame = create("Frame", {
 	Name = "MainFrame",
@@ -529,6 +633,7 @@ NEBROLIB.mainFrame = mainFrame
 NEBROLIB.keyModal = keyModal
 NEBROLIB.overlay = overlay
 NEBROLIB.toggleButton = toggleBtn
+NEBROLIB.Executor = detectExecutor()
 
 local tabs = {}
 local selectedTab = nil
@@ -550,7 +655,9 @@ end
 local function hideMain()
 	if not mainFrame.Visible then return end
 	local tw = tween(mainFrame, 0.2, {Size = UDim2.new(0, 0, 0, 0)})
-	tw.Completed:Wait()
+	if tw and tw.Completed then
+		tw.Completed:Wait()
+	end
 	mainFrame.Visible = false
 end
 
@@ -1181,6 +1288,7 @@ function NEBROLIB.hide()
 	hideMain()
 end
 
+-- Copy link with various clipboard functions (executors support)
 copyLinkBtn.MouseButton1Click:Connect(function()
 	local link = tostring(NEBROLIB.Settings.KeyLink or "")
 	if link == "" then
@@ -1189,10 +1297,14 @@ copyLinkBtn.MouseButton1Click:Connect(function()
 	end
 
 	local ok = false
+	-- popular clipboard functions
 	if typeof(setclipboard) == "function" then
 		ok = pcall(setclipboard, link)
 	elseif typeof(toclipboard) == "function" then
 		ok = pcall(toclipboard, link)
+	else
+		-- synapse has setclipboard too, pcall handled above
+		ok = false
 	end
 
 	if ok then
@@ -1262,12 +1374,18 @@ function NEBROLIB.Init(config)
 	mergeTable(NEBROLIB.Settings, config)
 	mergeTable(T, NEBROLIB.Settings.Theme)
 
+	-- update UI according to new settings
 	title.Text = NEBROLIB.Settings.Title
 	title2.Text = NEBROLIB.Settings.SubTitle
 	subtitle.Text = NEBROLIB.Settings.Author
 	keyTitle.Text = NEBROLIB.Settings.KeyName
 	mainFrame.Size = UDim2.new(0, NEBROLIB.Settings.Width, 0, NEBROLIB.Settings.Height)
 	expandedSize = UDim2.new(0, NEBROLIB.Settings.Width, 0, NEBROLIB.Settings.Height)
+
+	-- set toggle key from settings (if provided)
+	if NEBROLIB.Settings.ToggleKey then
+		pcall(function() NEBROLIB.Settings.ToggleKey = NEBROLIB.Settings.ToggleKey end)
+	end
 
 	task.spawn(function()
 		intro(NEBROLIB.Settings.IntroText)
@@ -1281,6 +1399,25 @@ function NEBROLIB.Init(config)
 	end)
 end
 
+-- Keyboard shortcut to toggle UI (ignores when typing into TextBox)
+UserInputService.InputBegan:Connect(function(input, gp)
+	if gp then return end
+	if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == NEBROLIB.Settings.ToggleKey then
+		-- ignore if focus is a TextBox
+		local focused = UserInputService:GetFocusedTextBox()
+		if focused and focused ~= "" then return end
+		if mainFrame.Visible then
+			hideMain()
+		else
+			pagesContainer.Visible = true
+			tabContainer.Visible = true
+			minBtn.Text = "-"
+			showMain()
+		end
+	end
+end)
+
+-- expose API
 NEBROLIB.makeWindow = NEBROLIB.makeWindow
 NEBROLIB.makeIntro = NEBROLIB.makeIntro
 NEBROLIB.createTab = NEBROLIB.createTab
@@ -1295,4 +1432,4 @@ NEBROLIB.createSlider = NEBROLIB.createSlider
 NEBROLIB.createLabel = NEBROLIB.createLabel
 NEBROLIB.createNotification = NEBROLIB.createNotification
 
-return NEBROLIB 
+return NEBROLIB
