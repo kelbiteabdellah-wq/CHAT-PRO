@@ -9,55 +9,42 @@ local Player = Players.LocalPlayer
 local PlayerMouse = Player:GetMouse()
 
 local nebrolib = {
-	
-Themes = {
-		BlueWhite = {
+	Themes = {
+		LightBlue = {
 			["Color Hub 1"] = ColorSequence.new({
-				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(12, 28, 58)),
-				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(20, 44, 92)),
-				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(12, 28, 58))
+				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(235, 246, 255)),
+				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(214, 236, 255)),
+				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(235, 246, 255))
 			}),
-			["Color Hub 2"] = Color3.fromRGB(18, 36, 72),
-			["Color Stroke"] = Color3.fromRGB(235, 243, 255),
-			["Color Theme"] = Color3.fromRGB(55, 145, 255),
-			["Color Text"] = Color3.fromRGB(255, 255, 255),
-			["Color Dark Text"] = Color3.fromRGB(220, 232, 245)
+			["Color Hub 2"] = Color3.fromRGB(225, 241, 255),
+			["Color Stroke"] = Color3.fromRGB(165, 213, 255),
+			["Color Theme"] = Color3.fromRGB(95, 182, 255),
+			["Color Text"] = Color3.fromRGB(28, 56, 82),
+			["Color Dark Text"] = Color3.fromRGB(82, 119, 150)
 		},
-		Darker = {
+		SkyBlue = {
 			["Color Hub 1"] = ColorSequence.new({
-				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(10, 22, 44)),
-				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(14, 30, 60)),
-				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(10, 22, 44))
+				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(224, 242, 255)),
+				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(202, 233, 255)),
+				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(224, 242, 255))
 			}),
-			["Color Hub 2"] = Color3.fromRGB(14, 28, 56),
-			["Color Stroke"] = Color3.fromRGB(232, 240, 255),
-			["Color Theme"] = Color3.fromRGB(65, 155, 255),
-			["Color Text"] = Color3.fromRGB(255, 255, 255),
-			["Color Dark Text"] = Color3.fromRGB(215, 228, 242)
+			["Color Hub 2"] = Color3.fromRGB(210, 233, 250),
+			["Color Stroke"] = Color3.fromRGB(143, 203, 255),
+			["Color Theme"] = Color3.fromRGB(77, 169, 255),
+			["Color Text"] = Color3.fromRGB(23, 48, 72),
+			["Color Dark Text"] = Color3.fromRGB(81, 118, 146)
 		},
-		Dark = {
+		OceanBlue = {
 			["Color Hub 1"] = ColorSequence.new({
-				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(18, 34, 64)),
-				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(22, 40, 76)),
-				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(18, 34, 64))
+				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(213, 236, 255)),
+				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(189, 225, 255)),
+				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(213, 236, 255))
 			}),
-			["Color Hub 2"] = Color3.fromRGB(22, 40, 76),
-			["Color Stroke"] = Color3.fromRGB(238, 244, 255),
-			["Color Theme"] = Color3.fromRGB(75, 165, 255),
-			["Color Text"] = Color3.fromRGB(255, 255, 255),
-			["Color Dark Text"] = Color3.fromRGB(224, 234, 246)
-		},
-		Purple = {
-			["Color Hub 1"] = ColorSequence.new({
-				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(14, 30, 58)),
-				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(18, 38, 76)),
-				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(14, 30, 58))
-			}),
-			["Color Hub 2"] = Color3.fromRGB(18, 34, 68),
-			["Color Stroke"] = Color3.fromRGB(234, 241, 255),
-			["Color Theme"] = Color3.fromRGB(50, 140, 255),
-			["Color Text"] = Color3.fromRGB(255, 255, 255),
-			["Color Dark Text"] = Color3.fromRGB(220, 232, 245)
+			["Color Hub 2"] = Color3.fromRGB(196, 225, 246),
+			["Color Stroke"] = Color3.fromRGB(120, 191, 255),
+			["Color Theme"] = Color3.fromRGB(54, 156, 255),
+			["Color Text"] = Color3.fromRGB(21, 44, 68),
+			["Color Dark Text"] = Color3.fromRGB(77, 110, 137)
 		}
 	},
 	Info = {
@@ -66,7 +53,7 @@ Themes = {
 	Save = {
 		UISize = {550, 380},
 		TabSize = 160,
-		Theme = "BlueWhite"
+		Theme = "LightBlue"
 	},
 	Settings = {},
 	Connection = {},
@@ -1106,7 +1093,7 @@ local GetFlag, SetFlag, CheckFlag do
 end
 
 local ScreenGui = Create("ScreenGui", CoreGui, {
-	Name = "redz Library V5",
+	Name = "nebrolib",
 }, {
 	Create("UIScale", {
 		Scale = UIScale,
@@ -1414,8 +1401,8 @@ function nebrolib:SetScale(NewScale)
 end
 
 function nebrolib:MakeWindow(Configs)
-	local WTitle = Configs[1] or Configs.Name or Configs.Title or "redz Library V5"
-	local WMiniText = Configs[2] or Configs.SubTitle or "by : redz9999"
+	local WTitle = Configs[1] or Configs.Name or Configs.Title or "nebrolib"
+	local WMiniText = Configs[2] or Configs.SubTitle or "by : nebro"
 	
 	Settings.ScriptFile = Configs[3] or Configs.SaveFolder or false
 	
@@ -1627,121 +1614,77 @@ function nebrolib:MakeWindow(Configs)
 	function Window:Minimize()
 		MainFrame.Visible = not MainFrame.Visible
 	end
-	
--- MiniButton example:
--- Window:AddMiniButton({
--- 	Text = "", -- text inside the button (can be empty)
--- 	Image = "rbxassetid://0", -- optional image (can be empty)
--- 	Size = 45, -- MiniButton size
--- 	Transparency = 0, -- MiniButton background transparency
--- })
-function Window:AddMiniButton(Configs)
+	function Window:AddMinimizeButton(Configs)
 		Configs = Configs or {}
-		local ButtonText = Configs.Text or Configs.Title or ""
-		local ButtonImage = Configs.Image or Configs.Icon or ""
-		local ButtonSize = tonumber(Configs.Size or 45) or 45
-		local ButtonTransparency = Configs.Transparency
-		if ButtonTransparency == nil then ButtonTransparency = 0 end
-
-		local Button = MakeDrag(Create("TextButton", ScreenGui, {
-			Size = UDim2.fromOffset(ButtonSize, ButtonSize),
-			Position = Configs.Position or UDim2.fromScale(0.15, 0.15),
-			BackgroundTransparency = ButtonTransparency,
+		local MiniText = Configs[1] or Configs.Text or Configs.Title or Configs.Label or ""
+		local MiniImage = Configs[2] or Configs.Image or Configs.Icon or ""
+		local MiniSize = Configs[3] or Configs.Size or 45
+		local MiniTransparency = Configs[4] or Configs.Transparency or 0.15
+		local MiniPosition = Configs[5] or Configs.Position or UDim2.fromScale(0.15, 0.15)
+		
+		local Button = MakeDrag(Create("ImageButton", ScreenGui, {
+			Size = UDim2.fromOffset(MiniSize, MiniSize),
+			Position = MiniPosition,
+			BackgroundTransparency = MiniTransparency,
 			BackgroundColor3 = Theme["Color Hub 2"],
 			AutoButtonColor = false,
-			Text = ButtonText,
-			TextColor3 = Theme["Color Text"],
-			Font = Enum.Font.GothamBold,
-			TextSize = math.max(12, math.floor(ButtonSize * 0.28)),
-			ClipsDescendants = true,
+			BorderSizePixel = 0,
 			Name = "MiniButton"
 		}))
-
-		local Corner, Stroke, Image
-
-		if Configs.Corner ~= false then
-			Corner = Make("Corner", Button)
-			SetProps(Corner, Configs.Corner or {})
-		end
-
-		if Configs.Stroke ~= false then
-			Stroke = Make("Stroke", Button)
-			SetProps(Stroke, Configs.Stroke or {})
-			if not Configs.Stroke then
-				Stroke.Color = Theme["Color Stroke"]
-			end
-		end
-
-		if type(ButtonImage) == "string" and ButtonImage ~= "" then
-			Image = Create("ImageLabel", Button, {
-				BackgroundTransparency = 1,
-				Image = ButtonImage,
-				ImageColor3 = Theme["Color Text"],
-				Size = UDim2.new(1, -12, 1, -12),
-				Position = UDim2.fromScale(0.5, 0.5),
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				Name = "Icon"
-			})
-
-			if ButtonText ~= "" then
-				Image.Size = UDim2.new(0, math.floor(ButtonSize * 0.42), 0, math.floor(ButtonSize * 0.42))
-				Image.Position = UDim2.new(0, 8, 0.5, 0)
-				Image.AnchorPoint = Vector2.new(0, 0.5)
-				Button.TextXAlignment = Enum.TextXAlignment.Left
-				Button.Text = "   " .. ButtonText
-			end
-		end
-
-		Button.Activated:Connect(function()
+		
+		Make("Corner", Button, UDim.new(0, 12))
+		Make("Stroke", Button, {
+			Color = Theme["Color Stroke"],
+			Thickness = 1,
+			Transparency = 0.2
+		})
+		
+		local TextLabel = Create("TextLabel", Button, {
+			Size = UDim2.new(1, -8, 0, 14),
+			Position = UDim2.new(0, 4, 0, 3),
+			BackgroundTransparency = 1,
+			Text = MiniText,
+			TextColor3 = Theme["Color Text"],
+			TextScaled = false,
+			TextSize = 10,
+			Font = Enum.Font.GothamBold,
+			TextWrapped = true,
+			TextTransparency = MiniText == "" and 1 or 0
+		})
+		
+		local ImageLabel = Create("ImageLabel", Button, {
+			Size = UDim2.new(0, math.max(14, MiniSize - 22), 0, math.max(14, MiniSize - 22)),
+			Position = UDim2.new(0.5, 0, 1, -4),
+			AnchorPoint = Vector2.new(0.5, 1),
+			BackgroundTransparency = 1,
+			Image = MiniImage,
+			ImageColor3 = Theme["Color Theme"],
+			ScaleType = Enum.ScaleType.Fit,
+			ImageTransparency = MiniImage == "" and 1 or 0
+		})
+		
+		local function ToggleMain()
 			Window:Minimize()
-		end)
-
-		local MiniButton = {}
+		end
+		Button.Activated:Connect(ToggleMain)
+		
+		local MiniButton = {
+			Button = Button,
+			TextLabel = TextLabel,
+			ImageLabel = ImageLabel
+		}
 		function MiniButton:Visible(...) Funcs:ToggleVisible(Button, ...) end
 		function MiniButton:Destroy() Button:Destroy() end
-		function MiniButton:SetText(Text) Button.Text = Text or "" end
-		function MiniButton:SetImage(NewImage)
-			if not Image then
-				Image = Create("ImageLabel", Button, {
-					BackgroundTransparency = 1,
-					ImageColor3 = Theme["Color Text"],
-					Size = UDim2.new(1, -12, 1, -12),
-					Position = UDim2.fromScale(0.5, 0.5),
-					AnchorPoint = Vector2.new(0.5, 0.5),
-					Name = "Icon"
-				})
-			end
-			Image.Image = NewImage or ""
+		function MiniButton:Set(Val1, Val2, Val3, Val4)
+			if type(Val1) == "string" then TextLabel.Text = Val1 TextLabel.TextTransparency = Val1 == "" and 1 or 0 end
+			if type(Val2) == "string" then ImageLabel.Image = Val2 ImageLabel.ImageTransparency = Val2 == "" and 1 or 0 end
+			if tonumber(Val3) then Button.Size = UDim2.fromOffset(tonumber(Val3), tonumber(Val3)) end
+			if tonumber(Val4) then Button.BackgroundTransparency = tonumber(Val4) end
 		end
-		function MiniButton:SetSize(NewSize)
-			local Num = tonumber(NewSize)
-			if Num then
-				Button.Size = UDim2.fromOffset(Num, Num)
-				Button.TextSize = math.max(12, math.floor(Num * 0.28))
-			end
-		end
-		function MiniButton:SetTransparency(NewTransparency)
-			local Num = tonumber(NewTransparency)
-			if Num ~= nil then
-				Button.BackgroundTransparency = Num
-			end
-		end
-		function MiniButton:Callback(Func)
-			if type(Func) == "function" then
-				Button.Activated:Connect(Func)
-			end
-		end
-
-		return {
-			Stroke = Stroke,
-			Corner = Corner,
-			Button = Button,
-			Image = Image,
-			MiniButton = MiniButton
-		}
+		return MiniButton
 	end
-	function Window:AddMinimizeButton(Configs)
-		return Window:AddMiniButton(Configs)
+	function Window:AddMiniButton(Configs)
+		return Window:AddMinimizeButton(Configs)
 	end
 	function Window:Set(Val1, Val2)
 		if type(Val1) == "string" and type(Val2) == "string" then
@@ -2799,6 +2742,16 @@ function Window:AddMiniButton(Configs)
 	
 	CloseButton.Activated:Connect(Window.CloseBtn)
 	MinimizeButton.Activated:Connect(Window.MinimizeBtn)
+
+	-- Example:
+	-- local win = nebrolib:MakeWindow({"nebrolib", "by : nebro"})
+	-- win:AddMinimizeButton({
+	-- 	Text = "Menu",
+	-- 	Image = "rbxassetid://10734924532",
+	-- 	Size = 45,
+	-- 	Transparency = 0.15
+	-- })
+
 	return Window
 end
 
