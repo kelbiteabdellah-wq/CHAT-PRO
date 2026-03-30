@@ -971,18 +971,14 @@ local Funcs = {} do
 	end
 	
 	function Funcs:ToggleVisible(Obj, Bool)
-		if Bool == nil then
-			Obj.Visible = not Obj.Visible
-		else
-			Obj.Visible = Bool
-		end
+		Obj.Visible = Bool ~= nil and Bool or Obj.Visible
 	end
 	
-	function Funcs:ToggleParent(Obj, Bool, Parent)
-		if Bool == nil then
-			Obj.Parent = Obj.Parent and nil or Parent
+	function Funcs:ToggleParent(Obj, Parent)
+		if Parent ~= nil then
+			Obj.Parent = Parent
 		else
-			Obj.Parent = Bool and Parent or nil
+			Obj.Parent = Obj.Parent and nil or Parent
 		end
 	end
 	
@@ -1110,6 +1106,287 @@ if ScreenFind and ScreenFind ~= ScreenGui then
 	ScreenFind:Destroy()
 end
 
+nebrolib.Notifications = nebrolib.Notifications or {
+	Enabled = true,
+	Duration = 4,
+	MaxVisible = 4,
+	Width = 320,
+	Spacing = 8,
+	Active = {},
+	_QueueId = 0,
+}
+
+local function ClampText(v, maxLen)
+	local s = tostring(v or "")
+	s = s:gsub("\r", " "):gsub("\n", " ")
+	if maxLen and #s > maxLen then
+		s = s:sub(1, maxLen)
+	end
+	return s
+end
+
+local function ResolveAsset(value)
+	if type(value) ~= "string" then
+		return value
+	end
+	if value == "" then
+		return ""
+	end
+	return nebrolib:GetIcon(value)
+end
+
+local function EnsureNotificationGui()
+	if nebrolib._NotificationGui and nebrolib._NotificationGui.Parent then
+		return nebrolib._NotificationGui, nebrolib._NotificationHolder
+	end
+
+	local Gui = Create("ScreenGui", CoreGui, {
+		Name = "nebrolib Notifications",
+		ResetOnSpawn = false,
+		IgnoreGuiInset = true,
+		DisplayOrder = 9999,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+	})
+
+	local Holder = Create("Frame", Gui, {
+		Name = "Holder",
+		BackgroundTransparency = 1,
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -16, 0, 16),
+		Size = UDim2.new(0, nebrolib.Notifications.Width, 1, -32),
+	})
+
+	Create("UIListLayout", Holder, {
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		VerticalAlignment = Enum.VerticalAlignment.Top,
+		HorizontalAlignment = Enum.HorizontalAlignment.Right,
+		Padding = UDim.new(0, nebrolib.Notifications.Spacing),
+	})
+
+	Create("UIPadding", Holder, {
+		PaddingTop = UDim.new(0, 2),
+		PaddingBottom = UDim.new(0, 2),
+	})
+
+	nebrolib._NotificationGui = Gui
+	nebrolib._NotificationHolder = Holder
+	return Gui, Holder
+end
+
+function nebrolib:SetNotificationsEnabled(state)
+	nebrolib.Notifications.Enabled = state ~= false
+	if not nebrolib.Notifications.Enabled then
+		self:DismissNotifications()
+	end
+end
+
+function nebrolib:DismissNotifications()
+	for _, item in ipairs(nebrolib.Notifications.Active) do
+		if item and item.Destroy then
+			pcall(item.Destroy)
+		elseif item and item.Card then
+			pcall(function()
+				item.Card:Destroy()
+			end)
+		end
+	end
+	table.clear(nebrolib.Notifications.Active)
+	if nebrolib._NotificationGui then
+		nebrolib._NotificationGui:Destroy()
+	end
+	nebrolib._NotificationGui = nil
+	nebrolib._NotificationHolder = nil
+end
+
+function nebrolib:Notify(Configs)
+	if not nebrolib.Notifications.Enabled then
+		return nil
+	end
+
+	Configs = Configs or {}
+	if type(Configs) ~= "table" then
+		Configs = { Text = Configs }
+	end
+
+	local Title = ClampText(Configs.Title or Configs.TitleText or Configs.Name or "Notification", 64)
+	local Desc = ClampText(Configs.Description or Configs.DescriptionText or Configs.Text or Configs.Message or "", 220)
+	local Duration = tonumber(Configs.Duration or Configs.Time or nebrolib.Notifications.Duration) or 4
+	local Icon = ResolveAsset(Configs.Icon or Configs.Image or Configs.Thumbnail or "")
+	local ShowClose = Configs.ShowClose ~= false
+	local Width = tonumber(Configs.Width or nebrolib.Notifications.Width) or nebrolib.Notifications.Width
+	local Accent = Configs.AccentColor or Theme["Color Theme"]
+
+	nebrolib.Notifications._QueueId += 1
+	local LayoutOrder = nebrolib.Notifications._QueueId
+
+	local _, Holder = EnsureNotificationGui()
+
+	local Card = Create("Frame", Holder, {
+		Name = "Notification",
+		BackgroundColor3 = Theme["Color Hub 2"],
+		BackgroundTransparency = 0.04,
+		BorderSizePixel = 0,
+		ClipsDescendants = true,
+		Size = UDim2.fromOffset(Width, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		LayoutOrder = LayoutOrder,
+	})
+	Create("UICorner", Card, { CornerRadius = UDim.new(0, 10) })
+	Create("UIStroke", Card, {
+		Color = Theme["Color Stroke"],
+		Thickness = 1,
+		Transparency = 0.2,
+	})
+	local Scale = Create("UIScale", Card, { Scale = 0.92 })
+
+	local Top = Create("Frame", Card, {
+		Name = "Top",
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, -16, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		Position = UDim2.fromOffset(8, 8),
+	})
+
+	local Row = Create("Frame", Top, {
+		Name = "Row",
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 24),
+	})
+
+	if Icon and Icon ~= "" then
+		Create("ImageLabel", Row, {
+			Name = "Icon",
+			BackgroundTransparency = 1,
+			Size = UDim2.fromOffset(18, 18),
+			Position = UDim2.fromOffset(0, 3),
+			Image = Icon,
+			ImageColor3 = Accent,
+		})
+	end
+
+	local titleLeft = Icon and 24 or 0
+	local titleRight = ShowClose and 22 or 0
+	local TitleLabel = Create("TextLabel", Row, {
+		Name = "Title",
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(titleLeft, 0),
+		Size = UDim2.new(1, -(titleLeft + titleRight), 0, 20),
+		Font = Enum.Font.GothamBold,
+		Text = Title,
+		TextColor3 = Theme["Color Text"],
+		TextSize = 13,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Center,
+		TextWrapped = false,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		RichText = true,
+	})
+
+	if ShowClose then
+		local Close = Create("TextButton", Row, {
+			Name = "Close",
+			BackgroundTransparency = 1,
+			Size = UDim2.fromOffset(18, 18),
+			Position = UDim2.new(1, -18, 0, 3),
+			Font = Enum.Font.GothamBold,
+			Text = "×",
+			TextColor3 = Theme["Color Dark Text"],
+			TextSize = 16,
+			AutoButtonColor = false,
+		})
+		Close.Activated:Connect(function()
+			if Card and Card.Parent then
+				Card:Destroy()
+			end
+		end)
+	end
+
+	local DescLabel = Create("TextLabel", Top, {
+		Name = "Description",
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(0, 26),
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		Font = Enum.Font.Gotham,
+		Text = Desc,
+		TextColor3 = Theme["Color Dark Text"],
+		TextSize = 11,
+		TextWrapped = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		RichText = true,
+	})
+	if Desc == "" then
+		DescLabel.Visible = false
+		Top.Size = UDim2.new(1, -16, 0, 28)
+	end
+
+	local function DestroyCard()
+		if not Card or not Card.Parent then return end
+		TweenService:Create(Scale, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Scale = 0.9 }):Play()
+		TweenService:Create(Card, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { BackgroundTransparency = 1 }):Play()
+		task.delay(0.18, function()
+			if Card and Card.Parent then
+				Card:Destroy()
+			end
+		end)
+	end
+
+	local entry = {
+		Card = Card,
+		Title = Title,
+		Description = Desc,
+		Destroy = DestroyCard,
+		Update = function(_, newData)
+			newData = newData or {}
+			if newData.Title or newData.TitleText or newData.Name then
+				TitleLabel.Text = ClampText(newData.Title or newData.TitleText or newData.Name, 64)
+			end
+			if newData.Description or newData.DescriptionText or newData.Text or newData.Message then
+				DescLabel.Text = ClampText(newData.Description or newData.DescriptionText or newData.Text or newData.Message, 220)
+				DescLabel.Visible = DescLabel.Text ~= ""
+			end
+			if newData.Icon or newData.Image or newData.Thumbnail then
+				local img = ResolveAsset(newData.Icon or newData.Image or newData.Thumbnail)
+				local iconObj = Row:FindFirstChild("Icon")
+				if iconObj and iconObj:IsA("ImageLabel") then
+					iconObj.Image = img or ""
+				end
+			end
+		end,
+	}
+	entry.Close = DestroyCard
+
+	table.insert(nebrolib.Notifications.Active, 1, entry)
+	while #nebrolib.Notifications.Active > nebrolib.Notifications.MaxVisible do
+		local old = table.remove(nebrolib.Notifications.Active)
+		if old and old.Destroy then
+			pcall(old.Destroy)
+		elseif old and old.Card then
+			pcall(function()
+				old.Card:Destroy()
+			end)
+		end
+	end
+
+	TweenService:Create(Scale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	TweenService:Create(Card, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 0.04 }):Play()
+
+	if Duration > 0 then
+		task.delay(Duration, function()
+			if Card and Card.Parent then
+				DestroyCard()
+			end
+		end)
+	end
+
+	return entry
+end
+
+nebrolib.Notification = nebrolib.Notify
+nebrolib.SendNotification = nebrolib.Notify
+
+
 local function GetStr(val)
 	if type(val) == "function" then
 		return val()
@@ -1197,200 +1474,6 @@ end
 
 local Theme = nebrolib.Themes[nebrolib.Save.Theme]
 
-nebrolib.Notifications = nebrolib.Notifications or {
-	Enabled = true,
-	MaxVisible = 4,
-	Duration = 4,
-	Active = {}
-}
-
-local function EnsureNotificationGui()
-	if nebrolib._NotificationGui and nebrolib._NotificationGui.Parent then
-		return nebrolib._NotificationGui, nebrolib._NotificationHolder
-	end
-
-	local Gui = Create("ScreenGui", CoreGui, {
-		Name = "nebrolib Notifications",
-		ResetOnSpawn = false,
-		IgnoreGuiInset = true,
-		ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	})
-
-	local Holder = Create("Frame", Gui, {
-		Name = "Holder",
-		BackgroundTransparency = 1,
-		Size = UDim2.new(0, 320, 1, -30),
-		Position = UDim2.new(1, -16, 1, -16),
-		AnchorPoint = Vector2.new(1, 1)
-	}, {
-		Create("UIListLayout", {
-			SortOrder = Enum.SortOrder.LayoutOrder,
-			VerticalAlignment = Enum.VerticalAlignment.Bottom,
-			Padding = UDim.new(0, 8)
-		})
-	})
-
-	nebrolib._NotificationGui = Gui
-	nebrolib._NotificationHolder = Holder
-	return Gui, Holder
-end
-
-local function ClampText(v)
-	v = v == nil and "" or v
-	if type(v) == "function" then
-		v = v()
-	end
-	return tostring(v)
-end
-
-function nebrolib:DismissNotifications()
-	for _, item in ipairs(nebrolib.Notifications.Active) do
-		if item and item.Frame and item.Frame.Parent then
-			item.Frame:Destroy()
-		end
-	end
-	table.clear(nebrolib.Notifications.Active)
-end
-
-function nebrolib:Notify(Configs)
-	if not nebrolib.Notifications.Enabled then
-		return
-	end
-
-	local Data = type(Configs) == "table" and Configs or {Text = Configs}
-	local Title = ClampText(Data[1] or Data.Title or "Notification")
-	local Text = ClampText(Data[2] or Data.Text or "")
-	local Icon = Data[3] or Data.Icon or "bell"
-	local Duration = tonumber(Data.Duration or Data.Time or nebrolib.Notifications.Duration) or 4
-	local Callback = Data[4] or Data.Callback
-	local UseAccent = Data.Accent ~= false
-
-	local _, Holder = EnsureNotificationGui()
-
-	local Card = InsertTheme(Create("Frame", Holder, {
-		Name = "Notification",
-		LayoutOrder = math.floor(os.clock() * 1000),
-		BackgroundColor3 = Theme["Color Hub 2"],
-		BackgroundTransparency = 0.05,
-		Size = UDim2.new(1, -2, 0, 76)
-	}), "Frame")
-
-	Make("Corner", Card, UDim.new(0, 10))
-	Make("Stroke", Card, Theme["Color Stroke"], 1)
-
-	local Accent = InsertTheme(Create("Frame", Card, {
-		Name = "Accent",
-		Size = UDim2.new(0, 4, 1, -16),
-		Position = UDim2.new(0, 8, 0, 8),
-		BackgroundColor3 = UseAccent and Theme["Color Theme"] or Theme["Color Stroke"]
-	}), UseAccent and "Theme" or "Stroke")
-	Make("Corner", Accent, UDim.new(0, 4))
-
-	local IconImage = Create("ImageLabel", Card, {
-		Name = "Icon",
-		BackgroundTransparency = 1,
-		Size = UDim2.fromOffset(18, 18),
-		Position = UDim2.new(0, 22, 0, 16),
-		Image = nebrolib:GetIcon(Icon) or "",
-		ImageColor3 = Theme["Color Theme"]
-	})
-
-	local TitleLabel = InsertTheme(Create("TextLabel", Card, {
-		Name = "Title",
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 50, 0, 12),
-		Size = UDim2.new(1, -86, 0, 18),
-		Font = Enum.Font.GothamBold,
-		Text = Title,
-		TextColor3 = Theme["Color Text"],
-		TextSize = 14,
-		TextXAlignment = Enum.TextXAlignment.Left
-	}), "Text")
-
-	local BodyLabel = InsertTheme(Create("TextLabel", Card, {
-		Name = "Body",
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 50, 0, 32),
-		Size = UDim2.new(1, -86, 0, 30),
-		Font = Enum.Font.Gotham,
-		Text = Text,
-		TextColor3 = Theme["Color Dark Text"],
-		TextSize = 12,
-		TextWrapped = true,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextYAlignment = Enum.TextYAlignment.Top
-	}), "DarkText")
-
-	local Close = Create("TextButton", Card, {
-		Name = "Close",
-		BackgroundTransparency = 1,
-		Size = UDim2.fromOffset(18, 18),
-		Position = UDim2.new(1, -18, 0, 10),
-		Font = Enum.Font.GothamBold,
-		Text = "×",
-		TextSize = 18,
-		TextColor3 = Theme["Color Dark Text"],
-		AutoButtonColor = false
-	})
-
-	local function CloseNotification()
-		if not Card.Parent then
-			return
-		end
-		CreateTween({Card, "BackgroundTransparency", 1, 0.15})
-		CreateTween({TitleLabel, "TextTransparency", 1, 0.15})
-		CreateTween({BodyLabel, "TextTransparency", 1, 0.15})
-		CreateTween({IconImage, "ImageTransparency", 1, 0.15})
-		CreateTween({Close, "TextTransparency", 1, 0.15})
-		task.delay(0.16, function()
-			if Card and Card.Parent then
-				Card:Destroy()
-			end
-		end)
-	end
-
-	CreateTween({Card, "BackgroundTransparency", 0.05, 0.18})
-	CreateTween({TitleLabel, "TextTransparency", 0, 0.18})
-	CreateTween({BodyLabel, "TextTransparency", 0, 0.18})
-	CreateTween({IconImage, "ImageTransparency", 0, 0.18})
-	CreateTween({Close, "TextTransparency", 0, 0.18})
-
-	Close.Activated:Connect(function()
-		if type(Callback) == "function" then
-			task.spawn(Callback)
-		end
-		CloseNotification()
-	end)
-
-	table.insert(nebrolib.Notifications.Active, 1, {Frame = Card})
-	while #nebrolib.Notifications.Active > nebrolib.Notifications.MaxVisible do
-		local old = table.remove(nebrolib.Notifications.Active)
-		if old and old.Frame and old.Frame.Parent then
-			old.Frame:Destroy()
-		end
-	end
-
-	task.delay(math.max(0.5, Duration), function()
-		CloseNotification()
-	end)
-
-	return {
-		Destroy = CloseNotification,
-		Visible = function(_, Bool)
-			if Card and Card.Parent then
-				Card.Visible = Bool ~= false
-			end
-		end,
-		Set = function(_, NewTitle, NewText)
-			if NewTitle ~= nil then TitleLabel.Text = ClampText(NewTitle) end
-			if NewText ~= nil then BodyLabel.Text = ClampText(NewText) end
-		end
-	}
-end
-
-nebrolib.Notification = nebrolib.Notify
-nebrolib.SendNotification = nebrolib.Notify
-
 local function AddEle(Name, Func)
 	nebrolib.Elements[Name] = Func
 end
@@ -1448,13 +1531,13 @@ local function ButtonFrame(Instance, Title, Description, HolderSize)
 		Font = Enum.Font.GothamMedium,
 		TextColor3 = Theme["Color Text"],
 		Size = UDim2.new(1, -20),
-		AutomaticSize = "Y",
+		AutomaticSize = Enum.AutomaticSize.Y,
 		Position = UDim2.new(0, 0, 0.5),
 		AnchorPoint = Vector2.new(0, 0.5),
 		BackgroundTransparency = 1,
-		TextTruncate = "AtEnd",
+		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextSize = 10,
-		TextXAlignment = "Left",
+		TextXAlignment = Enum.TextXAlignment.Left,
 		Text = "",
 		RichText = true
 	}), "Text")
@@ -1463,33 +1546,33 @@ local function ButtonFrame(Instance, Title, Description, HolderSize)
 		Font = Enum.Font.Gotham,
 		TextColor3 = Theme["Color Dark Text"],
 		Size = UDim2.new(1, -20),
-		AutomaticSize = "Y",
+		AutomaticSize = Enum.AutomaticSize.Y,
 		Position = UDim2.new(0, 12, 0, 15),
 		BackgroundTransparency = 1,
 		TextWrapped = true,
 		TextSize = 8,
-		TextXAlignment = "Left",
+		TextXAlignment = Enum.TextXAlignment.Left,
 		Text = "",
 		RichText = true
 	}), "DarkText")
 
 	local Frame = Make("Button", Instance, {
 		Size = UDim2.new(1, 0, 0, 25),
-		AutomaticSize = "Y",
+		AutomaticSize = Enum.AutomaticSize.Y,
 		Name = "Option"
 	})
-Make("Corner", Frame, UDim.new(0, 6))
-	
-	LabelHolder = Create("Frame", Frame, {
-		AutomaticSize = "Y",
+	Make("Corner", Frame, UDim.new(0, 6))
+
+	local LabelHolder = Create("Frame", Frame, {
+		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
 		Size = HolderSize,
 		Position = UDim2.new(0, 10, 0),
 		AnchorPoint = Vector2.new(0, 0)
 	}, {
 		Create("UIListLayout", {
-			SortOrder = "LayoutOrder",
-			VerticalAlignment = "Center",
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			VerticalAlignment = Enum.VerticalAlignment.Center,
 			Padding = UDim.new(0, 2)
 		}),
 		Create("UIPadding", {
@@ -1519,7 +1602,7 @@ Make("Corner", Frame, UDim.new(0, 6))
 			LabelHolder.AnchorPoint = Vector2.new(0, 0.5)
 		end
 	end
-	
+
 	Label:SetTitle(Title)
 	Label:SetDesc(Description)
 	return Frame, Label
@@ -1597,6 +1680,7 @@ function nebrolib:SetScale(NewScale)
 end
 
 function nebrolib:MakeWindow(Configs)
+	Configs = Configs or {}
 	local WTitle = Configs[1] or Configs.Name or Configs.Title or "nebrolib"
 	local WMiniText = Configs[2] or Configs.SubTitle or "by : redz9999"
 	
@@ -1808,33 +1892,83 @@ SetChildren(ButtonsFolder, {
 	function Window:Minimize()
 		MainFrame.Visible = not MainFrame.Visible
 	end
-	function Window:AddMinimizeButton(Configs)
-		local Button = MakeDrag(Create("ImageButton", ScreenGui, {
-			Size = UDim2.fromOffset(35, 35),
-			Position = UDim2.fromScale(0.15, 0.15),
-			BackgroundTransparency = 1,
-			BackgroundColor3 = Theme["Color Hub 2"],
-			AutoButtonColor = false
+	function Window:ToggleVisible()
+		self:Minimize()
+	end
+	function Window:Show()
+		MainFrame.Visible = true
+	end
+	function Window:Hide()
+		MainFrame.Visible = false
+	end
+	function Window:AddMiniButton(Configs)
+		Configs = Configs or {}
+		local Size = tonumber(Configs.Size or Configs.Width or Configs.Height or 45) or 45
+		local Transparency = tonumber(Configs.Transparency or Configs.BackgroundTransparency or 0) or 0
+		local Button = MakeDrag(Create("TextButton", ScreenGui, {
+			Size = UDim2.fromOffset(Size, Size),
+			Position = Configs.Position or UDim2.fromScale(0.15, 0.15),
+			BackgroundColor3 = Configs.BackgroundColor3 or Theme["Color Hub 2"],
+			BackgroundTransparency = Transparency,
+			Text = tostring(Configs.Text or ""),
+			TextColor3 = Configs.TextColor3 or Theme["Color Text"],
+			TextScaled = true,
+			Font = Configs.Font or Enum.Font.GothamBold,
+			AutoButtonColor = false,
+			Active = true,
+			ClipsDescendants = true,
+			Name = Configs.Name or "MiniButton",
 		}))
-		
+
 		local Stroke, Corner
-		if Configs.Corner then
-			Corner = Make("Corner", Button)
-SetProps(Corner, Configs.Corner)
+		if Configs.Corner ~= false then
+			local cornerRadius = UDim.new(0, 8)
+			if type(Configs.Corner) == "table" and Configs.Corner.CornerRadius then
+				cornerRadius = Configs.Corner.CornerRadius
+			end
+			Corner = Make("Corner", Button, cornerRadius)
 		end
 		if Configs.Stroke then
 			Stroke = Make("Stroke", Button)
-SetProps(Stroke, Configs.Corner)
+			if type(Configs.Stroke) == "table" then
+				SetProps(Stroke, Configs.Stroke)
+			end
 		end
-		
+
+		local Image
+		local Icon = ResolveAsset(Configs.Image or Configs.Icon or "")
+		if Icon and Icon ~= "" then
+			Image = Create("ImageLabel", Button, {
+				Name = "Image",
+				BackgroundTransparency = 1,
+				Size = UDim2.new(1, -12, 1, -12),
+				Position = UDim2.fromOffset(6, 6),
+				Image = Icon,
+				ImageTransparency = tonumber(Configs.ImageTransparency or 0) or 0,
+				ScaleType = Enum.ScaleType.Fit,
+			})
+		end
+
 		SetProps(Button, Configs.Button)
-		Button.Activated:Connect(Window.Minimize)
-		
+		Button.Activated:Connect(function()
+			if type(Configs.Callback) == "function" then
+				pcall(Configs.Callback, Window, Button)
+			end
+			if Configs.ToggleMenu ~= false then
+				Window:ToggleVisible()
+			end
+		end)
+
 		return {
 			Stroke = Stroke,
 			Corner = Corner,
+			Image = Image,
 			Button = Button
 		}
+	end
+	Window.AddMinimizeButton = Window.AddMiniButton
+	function Window:AddMenuButton(Configs)
+		return Window:AddMiniButton(Configs)
 	end
 	function Window:Set(Val1, Val2)
 		if type(Val1) == "string" and type(Val2) == "string" then
@@ -2745,24 +2879,24 @@ UpdateValues()
 			local TName = Configs[1] or Configs.Name or Configs.Title or "Text Box"
 			local TDesc = Configs.Desc or Configs.Description or ""
 			local TDefault = Configs[2] or Configs.Default or ""
+			local TPlaceholderText = Configs[5] or Configs.PlaceholderText or "Input"
 			local TClearText = Configs[3] or Configs.ClearText or false
 			local Callback = Funcs:GetCallback(Configs, 4)
-			local TPlaceholderText = Configs[5] or Configs.PlaceholderText or "Input"
-
-			if type(TDefault) ~= "string" then
-				TDefault = tostring(TDefault or "")
+			
+			if type(TDefault) ~= "string" or TDefault:gsub(" ", ""):len() < 1 then
+				TDefault = false
 			end
-
+			
 			local Button, LabelFunc = ButtonFrame(Container, TName, TDesc, UDim2.new(1, -38))
-
+			
 			local SelectedFrame = InsertTheme(Create("Frame", Button, {
 				Size = UDim2.new(0, 150, 0, 18),
 				Position = UDim2.new(1, -10, 0.5),
 				AnchorPoint = Vector2.new(1, 0.5),
 				BackgroundColor3 = Theme["Color Stroke"]
 			}), "Stroke")
-			Make("Corner", SelectedFrame, UDim.new(0, 4))
-
+Make("Corner", SelectedFrame, UDim.new(0, 4))
+			
 			local TextBoxInput = InsertTheme(Create("TextBox", SelectedFrame, {
 				Size = UDim2.new(0.85, 0, 0.85, 0),
 				AnchorPoint = Vector2.new(0.5, 0.5),
@@ -2773,118 +2907,43 @@ UpdateValues()
 				TextColor3 = Theme["Color Text"],
 				ClearTextOnFocus = TClearText,
 				PlaceholderText = TPlaceholderText,
-				Text = TDefault,
-				TextXAlignment = Enum.TextXAlignment.Center,
-				MultiLine = false
+				Text = ""
 			}), "Text")
-
+			
 			local Pencil = Create("ImageLabel", SelectedFrame, {
 				Size = UDim2.new(0, 12, 0, 12),
 				Position = UDim2.new(0, -5, 0.5),
 				AnchorPoint = Vector2.new(1, 0.5),
 				Image = "rbxassetid://15637081879",
-				BackgroundTransparency = 1,
-				ImageColor3 = Color3.fromRGB(255, 255, 255)
+				BackgroundTransparency = 1
 			})
-
+			
 			local TextBox = {}
-			local CallbackFunc = Callback
-			TextBox.OnChanging = nil
-
-			local function ApplyText(rawText, fireCallback)
-				local Text = tostring(rawText or "")
-				if TextBox.OnChanging then
-					local changed = TextBox.OnChanging(Text)
-					if changed ~= nil then
-						Text = tostring(changed)
-					end
-				end
-				TextBoxInput.Text = Text
-				if fireCallback ~= false then
-					Funcs:FireCallback(CallbackFunc, Text)
-				end
-				return Text
-			end
-
-			local function Commit()
+			local function Input()
 				local Text = TextBoxInput.Text
-				if TextBox.OnChanging then
-					local changed = TextBox.OnChanging(Text)
-					if changed ~= nil then
-						Text = tostring(changed)
-						TextBoxInput.Text = Text
-					end
-				end
-				if Text:gsub("%s+", "") ~= "" or TClearText then
-					Funcs:FireCallback(CallbackFunc, Text)
+				if Text:gsub(" ", ""):len() > 0 then
+					if TextBox.OnChanging then Text = TextBox.OnChanging(Text) or Text end
+					Funcs:FireCallback(Callback, Text)
+					TextBoxInput.Text = Text
 				end
 			end
-
-			if TDefault ~= "" then
-				ApplyText(TDefault, false)
-			end
-
+			
+			TextBoxInput.FocusLost:Connect(Input)
+Input()
+			
 			TextBoxInput.FocusLost:Connect(function()
-				CreateTween({Pencil, "ImageColor3", Color3.fromRGB(255, 255, 255), 0.2})
-				Commit()
+CreateTween({Pencil, "ImageColor3", Color3.fromRGB(255, 255, 255), 0.2})
 			end)
-
 			TextBoxInput.Focused:Connect(function()
-				CreateTween({Pencil, "ImageColor3", Theme["Color Theme"], 0.2})
+CreateTween({Pencil, "ImageColor3", Theme["Color Theme"], 0.2})
 			end)
-
-			function TextBox:Visible(Bool)
-				Funcs:ToggleVisible(Button, Bool)
-			end
-
-			function TextBox:Destroy()
-				Button:Destroy()
-			end
-
-			function TextBox:Get()
-				return TextBoxInput.Text
-			end
-
-			function TextBox:Set(Value, Fire)
-				return ApplyText(Value, Fire ~= false)
-			end
-
-			function TextBox:Clear(Fire)
-				TextBoxInput.Text = ""
-				if Fire ~= false then
-					Funcs:FireCallback(CallbackFunc, "")
-				end
-			end
-
-			function TextBox:Focus()
-				TextBoxInput:CaptureFocus()
-			end
-
-			function TextBox:Callback(Func)
-				if type(Func) == "function" then
-					CallbackFunc = {Func}
-				end
-			end
-
-			function TextBox:SetPlaceholder(Value)
-				if Value ~= nil then
-					TextBoxInput.PlaceholderText = tostring(Value)
-				end
-			end
-
-			function TextBox:SetTitle(NewTitle)
-				LabelFunc:SetTitle(NewTitle)
-			end
-
-			function TextBox:SetDesc(NewDesc)
-				LabelFunc:SetDesc(NewDesc)
-			end
-
+			
+			TextBox.OnChanging = false
+			function TextBox:Visible(...) Funcs:ToggleVisible(Button, ...) end
+			function TextBox:Destroy() Button:Destroy() end
 			return TextBox
 		end
-
-		Tab.AddTextbox = Tab.AddTextBox
-function Tab:AddDiscordInvite(Configs)
+		function Tab:AddDiscordInvite(Configs)
 			local Title = Configs[1] or Configs.Name or Configs.Title or "Discord"
 			local Desc = Configs.Desc or Configs.Description or ""
 			local Logo = Configs[2] or Configs.Logo or ""
